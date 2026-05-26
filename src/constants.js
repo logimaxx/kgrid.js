@@ -28,6 +28,12 @@
 
         },
         "filtersRowAttrs": null,
+        /** Page size choices in paging footer <select> */
+        pagingPageSizes: [10, 25, 50, 75],
+        pagingDefaultSize: 10,
+        /** Initial text in .no-data-tbody (overridden by noDataTemplate after init) */
+        emptyRowMessage: null,
+        pagingFooterLabel: "records per page. Total",
     };
 
     CT.protoColumnConfig = {
@@ -74,6 +80,21 @@
         }
     };
 
-    CT.VALID_INPUT_TYPES = ["displayonly","text","textarea","number","date","datetime","time","checkbox","radio","file","password","email","url","search","tel","select","select2","autosuggest","hidden"];
-    CT.VALID_FILTER_TYPES = ["displayonly","text","textarea","number","date","datetime","time","checkbox","radio","file","password","email","url","search","tel","select","select2","autosuggest","hidden"];
+    CT.VALID_NATIVE_INPUT_TYPES = ["displayonly","text","textarea","number","date","datetime","time","checkbox","radio","file","password","email","url","search","tel","select","hidden"];
+    /** @deprecated use VALID_NATIVE_INPUT_TYPES or isValidInputType() */
+    CT.VALID_INPUT_TYPES = CT.VALID_NATIVE_INPUT_TYPES.concat(["select2","autosuggest"]);
+    CT.VALID_NATIVE_FILTER_TYPES = CT.VALID_NATIVE_INPUT_TYPES.filter((t) => t !== "displayonly");
+    /** @deprecated use isValidFilterType() */
+    CT.VALID_FILTER_TYPES = CT.VALID_NATIVE_FILTER_TYPES.concat(["select2","autosuggest","multi_select","date_range"]);
+
+    CT.isValidInputType = function (type) {
+        return CT.VALID_NATIVE_INPUT_TYPES.includes(type) || CT.isPluggableFieldType(type);
+    };
+
+    CT.isValidFilterType = function (type) {
+        if (type === "displayonly") {
+            return false;
+        }
+        return CT.VALID_NATIVE_FILTER_TYPES.includes(type) || CT.isPluggableFieldType(type);
+    };
 })(window.KGrid = window.KGrid || {});

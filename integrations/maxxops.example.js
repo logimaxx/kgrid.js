@@ -1,6 +1,9 @@
 /**
  * Example: wire MAXXOPS lib.js helpers into KGrid.
  * Load after lib.js, select2.js, autosuggest.js, and kgrid.js.
+ *
+ * select2 / autosuggest register integration field types (see src/field-types-integrations.js).
+ * Custom widgets: KGrid.registerFieldType("myType", { create, mount }).
  */
 KGrid.configure({
     log: typeof klog === "function" ? klog : console.log.bind(console),

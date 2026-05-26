@@ -32,8 +32,11 @@
             cell.children("a").attr("data-sortfld",col.name);
             cell.appendTo(labelsRow);
         });
-        if(options.features && (options.features.delete || options.features.create)) {
-            $("<th width='100px'>").appendTo(labelsRow);
+        if (CT.hasActionColumn(options)) {
+            $("<th>")
+                .addClass("kgrid-row-actions")
+                .attr("aria-label", "Actions")
+                .appendTo(labelsRow);
         }
 
         return labelsRow;

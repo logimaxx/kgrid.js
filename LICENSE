@@ -1,0 +1,34 @@
+Proprietary License — KGrid
+
+Copyright (c) 2024–2026 Logimaxx System SRL. All rights reserved.
+
+Author: Sergiu Voicu (sergiu@logimaxx.ro)
+
+This software and associated documentation files (the "Software") are the
+proprietary property of Logimaxx System SRL. The Software includes @logimaxx/kgrid and all
+source, build artifacts, styles, and documentation in this repository.
+
+GRANT OF LICENSE
+
+You may use, copy, and modify the Software only if you have received explicit
+written permission from Logimaxx (for example: employment, contractor agreement,
+partner agreement, or commercial license). Unless such permission is granted,
+no license is granted to you.
+
+RESTRICTIONS
+
+Without prior written consent from Logimaxx, you must not:
+
+- Use the Software for any purpose
+- Copy, distribute, or sublicense the Software or any derivative work
+- Publish the Software or make it available to third parties
+- Remove or alter copyright or proprietary notices
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+LOGIMAXX BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+For licensing inquiries: sergiu@logimaxx.ro — https://logimaxx.ro

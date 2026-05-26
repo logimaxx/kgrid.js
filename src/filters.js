@@ -39,52 +39,38 @@
 
             let filter = col.filter;
             let input;
-            let initFilterWidget = null;
-            switch(filter.type) {
-                case "select":
-                    if(!filter.options) {
-                        throw new Error("Column must have a filter.options array when column.filter.type is select: \n"+JSON.stringify(col,null,2));
-                    }
-                    input = $(`<select>`).addClass("form-select form-select-sm");
-                    if(Array.isArray(filter.options)) {
-                        filter.options.forEach((opt)=> {
-                            if(!opt.label || typeof opt.value!=="string") {
-                                throw new Error("Column must have an filter.options object with label and value when column.filter.type is select: \n"+JSON.stringify(col,null,2));
-                            }
-                            $("<option>").text(opt.label).attr("value",opt.value).appendTo(input);
-                        });
-                    }
-                    else {
-                        throw new Error("Column must have an filter.options array when column.filter.type is select: \n"+JSON.stringify(col,null,2));
-                    }
-                    break;
-                case "multi_select":
-                    input = $(`<select class='form-select form-select-sm' multiple>`);
-                    if(Array.isArray(filter.options)) {
-                        filter.options.forEach((opt)=> $("<option>").text(opt.label).attr("value",opt.value).appendTo(input));
-                    }
-                    break;
-                case "autosuggest":
-                    input = $(`<input autocomplete='off' type='text' class='form-control form-control-sm'/>`);
-                    initFilterWidget = (inp) => { CT.autosuggest(inp, filter.options); };
-                    break;
-                case "date_range":
-                    input = $(`<input autocomplete='off' type='date' class='form-control form-control-sm' />`);
-                    break;
-                case "select2":
-                    input = $(`<select class='form-select form-select-sm select2' data-type='select2'/>`);
-                    if(col.filter.default && typeof col.filter.default === "object" && col.filter.default.value) {
-                        $("<option>").text(col.filter.default.label??col.filter.default.value).attr("value",col.filter.default.value).appendTo(input);
-                    }
-                    initFilterWidget = (inp) => CT.initFilterSelect2(inp, filter);
-                    break;
-                default:
-                    input = $(`<input autocomplete='off' type='${filter.type}' class='form-control form-control-sm'/>`);
-            }
-
-            input.appendTo(filterCell);
-            if (initFilterWidget) {
-                initFilterWidget(input);
+            const pluggable = CT.createFieldInput({ mode: "filter", col, config: filter });
+            if (pluggable) {
+                input = pluggable.$input;
+                input.appendTo(filterCell);
+                CT.mountField({ mode: "filter", $input: input, col, config: filter });
+            } else {
+                switch(filter.type) {
+                    case "select":
+                        if(!filter.options) {
+                            throw new Error("Column must have a filter.options array when column.filter.type is select: \n"+JSON.stringify(col,null,2));
+                        }
+                        input = $(`<select>`).addClass("form-select form-select-sm");
+                        if(Array.isArray(filter.options)) {
+                            filter.options.forEach((opt)=> {
+                                if(!opt.label || typeof opt.value!=="string") {
+                                    throw new Error("Column must have an filter.options object with label and value when column.filter.type is select: \n"+JSON.stringify(col,null,2));
+                                }
+                                $("<option>").text(opt.label).attr("value",opt.value).appendTo(input);
+                            });
+                        }
+                        else {
+                            throw new Error("Column must have an filter.options array when column.filter.type is select: \n"+JSON.stringify(col,null,2));
+                        }
+                        input.appendTo(filterCell);
+                        break;
+                    default:
+                        if (!CT.isValidFilterType(filter.type)) {
+                            throw new Error("Unknown filter type: " + filter.type);
+                        }
+                        input = $(`<input autocomplete='off' type='${filter.type}' class='form-control form-control-sm'/>`);
+                        input.appendTo(filterCell);
+                }
             }
 
             input.attr("data-operator", filter.operator);
@@ -97,14 +83,15 @@
                 }
             };
             input.on("input change", submitFilterForm);
-            if (filter.type === "select2") {
-                input.on("select2:select select2:clear", submitFilterForm);
-            }
+            CT.bindFieldFilterSubmit(filter.type, input, submitFilterForm);
         });
 
 
-        if(options.features && (options.features.delete || options.features.update || options.features.create)) {
-            $("<th>").appendTo(filtersRow).attr("data-label", "Actions");
+        if (CT.hasActionColumn(options)) {
+            $("<th>")
+                .addClass("kgrid-row-actions")
+                .attr("data-label", "Actions")
+                .appendTo(filtersRow);
         }
 
         return filterForm;

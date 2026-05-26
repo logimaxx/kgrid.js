@@ -132,6 +132,27 @@ div.save-item{
 .editing .edit-item-grp{
     display: inline-flex;
 }
+
+/* Row-actions: collapse column in view so fixed layout gives full width to data cols */
+.custom-table-shell[data-interaction="view"] col.kgrid-row-actions-col {
+    visibility: collapse;
+    width: 0 !important;
+}
+.custom-table-shell[data-interaction="view"] th.kgrid-row-actions,
+.custom-table-shell[data-interaction="view"] td.kgrid-row-actions {
+    visibility: collapse;
+    width: 0 !important;
+    max-width: 0;
+    padding: 0;
+    border-width: 0 !important;
+    overflow: hidden;
+}
+.custom-table-shell[data-interaction="edit"] col.kgrid-row-actions-col {
+    width: 100px;
+}
+.custom-table-shell[data-interaction="edit"] th.kgrid-row-actions {
+    width: 100px;
+}
 .editing .delete-item-grp {
     display: none;
 }

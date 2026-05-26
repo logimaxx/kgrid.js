@@ -51,8 +51,8 @@
             }
         });
 
-        if(options.features.delete  || options.features.update) {
-            const buttonColumn = $("<td>").appendTo(dataRow);
+        if (CT.hasActionColumn(options)) {
+            const buttonColumn = $("<td>").addClass("kgrid-row-actions").appendTo(dataRow);
             if(options.features.delete) {
                 $("<div>").addClass("btn-group delete-item-grp").appendTo(buttonColumn).append(
                     $("<button>").addClass("btn btn-sm btn-danger delete-item")

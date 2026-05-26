@@ -1,6 +1,66 @@
 (function (CT) {
+    /**
+     * Normalize init host: native DOM element or jQuery collection.
+     * @param {Element|JQuery} host
+     * @returns {JQuery}
+     */
+    CT.resolveHostElement = function (host) {
+        if (host == null) {
+            throw new TypeError("KGrid.init(host, opts): host is required");
+        }
+        if (typeof host === "object" && host.jquery) {
+            if (!host.length) {
+                throw new Error("KGrid.init(host, opts): empty jQuery selection");
+            }
+            return host;
+        }
+        if (
+            typeof host === "object" &&
+            host.nodeType === 1 &&
+            typeof host.nodeName === "string"
+        ) {
+            return $(host);
+        }
+        throw new TypeError(
+            "KGrid.init(host, opts): host must be a DOM Element or jQuery object"
+        );
+    };
+
     CT.uuid = function () {
         return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    };
+
+    /**
+     * Whether the table needs a trailing row-actions column (header, filters, data rows, colspan).
+     * @param {Object} options table options with features
+     * @returns {boolean}
+     */
+    CT.hasActionColumn = function (options) {
+        const f = options && options.features;
+        if (!f) {
+            return false;
+        }
+        return !!(f.delete || f.update || f.create);
+    };
+
+    /**
+     * Sync <colgroup> so row-actions width can collapse in view (table-layout: fixed).
+     * @param {JQuery} $table
+     * @param {number} dataColumnCount visible data columns (no row-actions)
+     * @param {boolean} hasActions
+     */
+    CT.syncActionColumnColgroup = function ($table, dataColumnCount, hasActions) {
+        let $colgroup = $table.children("colgroup.kgrid-colgroup");
+        if (!$colgroup.length) {
+            $colgroup = $("<colgroup>").addClass("kgrid-colgroup").prependTo($table);
+        }
+        $colgroup.empty();
+        for (let i = 0; i < dataColumnCount; i++) {
+            $colgroup.append($("<col>"));
+        }
+        if (hasActions) {
+            $colgroup.append($("<col>").addClass("kgrid-row-actions-col"));
+        }
     };
 
     /**

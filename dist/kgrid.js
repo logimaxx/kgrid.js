@@ -1,4 +1,4 @@
-/*! kgrid | built 2026-05-26T10:19:33.315Z */
+/*! @logimaxx/kgrid | (c) Logimaxx System SRL — proprietary | https://logimaxx.ro | built 2026-05-26T13:21:12.178Z */
 
 /* --- configure.js --- */
 /**
@@ -17,6 +17,8 @@
                 onCancel();
             }
         },
+        /** @type {((context: object, onConfirm: Function, onCancel?: Function) => void)|null} */
+        deleteConfirm: null,
         serializeForm: function (form, columns) {
             const fd = new FormData(form);
             const out = {};
@@ -33,13 +35,11 @@
             return out;
         },
         select2: null,
-        autosuggest: function ($input, options) {
-            const $el = typeof $input === "object" && $input.jquery ? $input : window.jQuery($input);
-            if (typeof $el.autosuggest === "function") {
-                return $el.autosuggest(options);
-            }
-            throw new Error("KGrid: jQuery autosuggest plugin is not loaded");
-        },
+        /** @type {Record<string, object>|null} Extra field type plugins */
+        fieldTypes: null,
+        /** @type {typeof globalThis.KViews|null} Set via configure or use window.KViews */
+        kviews: null,
+        autosuggest: null,
     };
 
     CT._config = Object.assign({}, defaultConfig);
@@ -49,13 +49,22 @@
      * @param {Function} [overrides.log]
      * @param {Function} [overrides.onError]
      * @param {Function} [overrides.confirm] (message, onConfirm, onCancel?)
+     * @param {Function} [overrides.deleteConfirm] (context, onConfirm, onCancel?) — row delete UX
      * @param {Function} [overrides.serializeForm] (form, columns?)
      * @param {Function} [overrides.select2] ($input, options)
      * @param {Function} [overrides.autosuggest] ($input, options)
+     * @param {Object} [overrides.kviews] KViews module (createCollectionInstance)
+     * @param {Object} [overrides.fieldTypes] map of name → field type plugin
      */
     CT.configure = function (overrides) {
         if (overrides && typeof overrides === "object") {
             Object.assign(CT._config, overrides);
+            if (overrides.fieldTypes) {
+                CT._registerConfiguredFieldTypes();
+            }
+        }
+        if (typeof CT._syncIntegrationFieldTypes === "function") {
+            CT._syncIntegrationFieldTypes();
         }
         return CT;
     };
@@ -72,6 +81,31 @@
         return CT._config.confirm(message, onConfirm, onCancel);
     };
 
+    CT.DEFAULT_DELETE_CONFIRM_MESSAGE = "Delete this record?";
+
+    CT._defaultDeleteConfirm = function (context, onConfirm, onCancel) {
+        CT.confirm(CT.DEFAULT_DELETE_CONFIRM_MESSAGE, onConfirm, onCancel);
+    };
+
+    /**
+     * Ask the host to confirm row delete. Per-table `options.deleteConfirm` wins over configure.
+     * @param {{ item: object, view: object, options?: object }} context
+     * @param {() => void} onConfirm run delete (e.g. item.delete())
+     * @param {() => void} [onCancel]
+     */
+    CT.runDeleteConfirm = function (context, onConfirm, onCancel) {
+        const perTable =
+            context.options && typeof context.options.deleteConfirm === "function"
+                ? context.options.deleteConfirm
+                : null;
+        const configured =
+            typeof CT._config.deleteConfirm === "function"
+                ? CT._config.deleteConfirm
+                : null;
+        const fn = perTable || configured || CT._defaultDeleteConfirm;
+        return fn(context, onConfirm, onCancel);
+    };
+
     CT.serializeForm = function (form, columns) {
         return CT._config.serializeForm(form, columns);
     };
@@ -84,8 +118,39 @@
     };
 
     CT.autosuggest = function ($input, options) {
+        if (typeof CT._config.autosuggest !== "function") {
+            throw new Error("KGrid.configure({ autosuggest: fn }) is required for autosuggest columns");
+        }
         return CT._config.autosuggest($input, options);
     };
+
+    /**
+     * Resolve KViews from init override, configure({ kviews }), or window.KViews.
+     * @param {Object} [override] per-init kviews (opts.kviews)
+     * @returns {Object|null}
+     */
+    CT.getKViews = function (override) {
+        const candidates = [override, CT._config.kviews];
+        for (let i = 0; i < candidates.length; i++) {
+            const kv = candidates[i];
+            if (kv && typeof kv.createCollectionInstance === "function") {
+                return kv;
+            }
+        }
+        const root = typeof window !== "undefined"
+            ? window
+            : (typeof globalThis !== "undefined" ? globalThis : {});
+        const globalKv = root.KViews;
+        if (globalKv && typeof globalKv.createCollectionInstance === "function") {
+            return globalKv;
+        }
+        return null;
+    };
+
+    CT.KVIEWS_MISSING_MSG =
+        "KGrid requires KViews: install peer @logimaxx/kviews, load it before kgrid.js " +
+        "(window.KViews), or call KGrid.configure({ kviews: KViews }). " +
+        "You can also pass kviews in table options: KGrid.init(host, { kviews, ... }).";
 })(window.KGrid = window.KGrid || {});
 
 
@@ -120,6 +185,12 @@
 
         },
         "filtersRowAttrs": null,
+        /** Page size choices in paging footer <select> */
+        pagingPageSizes: [10, 25, 50, 75],
+        pagingDefaultSize: 10,
+        /** Initial text in .no-data-tbody (overridden by noDataTemplate after init) */
+        emptyRowMessage: null,
+        pagingFooterLabel: "records per page. Total",
     };
 
     CT.protoColumnConfig = {
@@ -166,8 +237,23 @@
         }
     };
 
-    CT.VALID_INPUT_TYPES = ["displayonly","text","textarea","number","date","datetime","time","checkbox","radio","file","password","email","url","search","tel","select","select2","autosuggest","hidden"];
-    CT.VALID_FILTER_TYPES = ["displayonly","text","textarea","number","date","datetime","time","checkbox","radio","file","password","email","url","search","tel","select","select2","autosuggest","hidden"];
+    CT.VALID_NATIVE_INPUT_TYPES = ["displayonly","text","textarea","number","date","datetime","time","checkbox","radio","file","password","email","url","search","tel","select","hidden"];
+    /** @deprecated use VALID_NATIVE_INPUT_TYPES or isValidInputType() */
+    CT.VALID_INPUT_TYPES = CT.VALID_NATIVE_INPUT_TYPES.concat(["select2","autosuggest"]);
+    CT.VALID_NATIVE_FILTER_TYPES = CT.VALID_NATIVE_INPUT_TYPES.filter((t) => t !== "displayonly");
+    /** @deprecated use isValidFilterType() */
+    CT.VALID_FILTER_TYPES = CT.VALID_NATIVE_FILTER_TYPES.concat(["select2","autosuggest","multi_select","date_range"]);
+
+    CT.isValidInputType = function (type) {
+        return CT.VALID_NATIVE_INPUT_TYPES.includes(type) || CT.isPluggableFieldType(type);
+    };
+
+    CT.isValidFilterType = function (type) {
+        if (type === "displayonly") {
+            return false;
+        }
+        return CT.VALID_NATIVE_FILTER_TYPES.includes(type) || CT.isPluggableFieldType(type);
+    };
 })(window.KGrid = window.KGrid || {});
 
 
@@ -189,8 +275,68 @@
 
 /* --- dom.js --- */
 (function (CT) {
+    /**
+     * Normalize init host: native DOM element or jQuery collection.
+     * @param {Element|JQuery} host
+     * @returns {JQuery}
+     */
+    CT.resolveHostElement = function (host) {
+        if (host == null) {
+            throw new TypeError("KGrid.init(host, opts): host is required");
+        }
+        if (typeof host === "object" && host.jquery) {
+            if (!host.length) {
+                throw new Error("KGrid.init(host, opts): empty jQuery selection");
+            }
+            return host;
+        }
+        if (
+            typeof host === "object" &&
+            host.nodeType === 1 &&
+            typeof host.nodeName === "string"
+        ) {
+            return $(host);
+        }
+        throw new TypeError(
+            "KGrid.init(host, opts): host must be a DOM Element or jQuery object"
+        );
+    };
+
     CT.uuid = function () {
         return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    };
+
+    /**
+     * Whether the table needs a trailing row-actions column (header, filters, data rows, colspan).
+     * @param {Object} options table options with features
+     * @returns {boolean}
+     */
+    CT.hasActionColumn = function (options) {
+        const f = options && options.features;
+        if (!f) {
+            return false;
+        }
+        return !!(f.delete || f.update || f.create);
+    };
+
+    /**
+     * Sync <colgroup> so row-actions width can collapse in view (table-layout: fixed).
+     * @param {JQuery} $table
+     * @param {number} dataColumnCount visible data columns (no row-actions)
+     * @param {boolean} hasActions
+     */
+    CT.syncActionColumnColgroup = function ($table, dataColumnCount, hasActions) {
+        let $colgroup = $table.children("colgroup.kgrid-colgroup");
+        if (!$colgroup.length) {
+            $colgroup = $("<colgroup>").addClass("kgrid-colgroup").prependTo($table);
+        }
+        $colgroup.empty();
+        for (let i = 0; i < dataColumnCount; i++) {
+            $colgroup.append($("<col>"));
+        }
+        if (hasActions) {
+            $colgroup.append($("<col>").addClass("kgrid-row-actions-col"));
+        }
     };
 
     /**
@@ -225,6 +371,248 @@
             }
         }
         return $();
+    };
+})(window.KGrid);
+
+
+/* --- table-shell.js --- */
+/**
+ * Build the KGrid table DOM skeleton (self-contained; no external HTML file).
+ *
+ * Edit TABLE_SHELL_TEMPLATE below to change markup. Dynamic slots:
+ *   {{EMPTY_ROW_MESSAGE}}  — text in .no-data-tbody
+ *   {{PAGES_DATA_PAGESIZE}} — value for .pages data-pagesize
+ *   {{PAGE_SIZE_OPTIONS}}  — <option> elements for .pagesize
+ *   {{PAGING_FOOTER_LABEL}} — text after page-size select
+ */
+(function (CT) {
+    CT.DEFAULT_EMPTY_ROW_MESSAGE = "No records match your search.";
+
+    /**
+     * Static table skeleton (one sortable header cell template; labels.js clones it per column).
+     * @type {string}
+     */
+    CT.TABLE_SHELL_TEMPLATE = `
+<table class="custom-table" style="table-layout: fixed;">
+  <thead class="thead-labels">
+    <tr>
+      <th class="align-top">
+        <a class="sort" data-sortfld="" style="cursor: pointer;">
+          <span class="column-label"></span>
+          <i class="fas fa-sort-up sort-up" style="display: none"></i>
+          <i class="fas fa-sort-down sort-down" style="display: none"></i>
+          <i class="fas fa-sort sort-default"></i>
+        </a>
+      </th>
+    </tr>
+  </thead>
+  <thead class="thead-filters"></thead>
+  <tbody class="before-main-tbody"></tbody>
+  <tbody class="main-tbody"></tbody>
+  <tbody class="after-main-tbody"></tbody>
+  <tbody class="no-data-tbody">
+    <tr><td>{{EMPTY_ROW_MESSAGE}}</td></tr>
+  </tbody>
+  <tfoot class="paging-footer">
+    <tr>
+      <td>
+        <div class="btn-group pages" data-pagesize="{{PAGES_DATA_PAGESIZE}}">
+          <button type="button" name="first" class="btn btn-sm btn-outline-secondary">&lt;&lt;</button>
+          <button type="button" name="prev" class="btn btn-sm btn-outline-secondary">&lt;</button>
+          <button type="button" name="page" class="btn btn-sm btn-outline-secondary">1</button>
+          <button type="button" name="next" class="btn btn-sm btn-outline-secondary">&gt;</button>
+          <button type="button" name="last" class="btn btn-sm btn-outline-secondary">&gt;&gt;</button>
+        </div>
+        <select class="pagesize">
+{{PAGE_SIZE_OPTIONS}}
+        </select>
+        {{PAGING_FOOTER_LABEL}} <span class="totalrecscount"></span>
+      </td>
+    </tr>
+  </tfoot>
+</table>`.trim();
+
+    CT._escapeTableShellText = function (text) {
+        return String(text)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;");
+    };
+
+    CT._renderPageSizeOptions = function (pageSizes, defaultSize) {
+        return pageSizes
+            .map((size) => {
+                const value = String(size);
+                const selected = value === String(defaultSize) ? " selected" : "";
+                return `          <option value="${value}"${selected}>${value}</option>`;
+            })
+            .join("\n");
+    };
+
+    /**
+     * Fill template placeholders from table options.
+     * @param {Object} options
+     * @param {string} [template]
+     * @returns {string}
+     */
+    CT.renderTableShellHtml = function (options, template) {
+        const pageSizes = Array.isArray(options.pagingPageSizes)
+            ? options.pagingPageSizes
+            : [10, 25, 50, 75];
+        const defaultSize =
+            options.pagingDefaultSize != null ? options.pagingDefaultSize : pageSizes[0];
+        const emptyMsg = CT._escapeTableShellText(
+            options.emptyRowMessage || CT.DEFAULT_EMPTY_ROW_MESSAGE
+        );
+        const pagingLabel = CT._escapeTableShellText(
+            options.pagingFooterLabel || "records per page. Total"
+        );
+
+        return (template || CT.TABLE_SHELL_TEMPLATE)
+            .replace(/\{\{EMPTY_ROW_MESSAGE\}\}/g, emptyMsg)
+            .replace(/\{\{PAGES_DATA_PAGESIZE\}\}/g, String(defaultSize))
+            .replace(
+                /\{\{PAGE_SIZE_OPTIONS\}\}/g,
+                CT._renderPageSizeOptions(pageSizes, defaultSize)
+            )
+            .replace(/\{\{PAGING_FOOTER_LABEL\}\}/g, pagingLabel);
+    };
+
+    /**
+     * Create the table element (not yet attached to document).
+     * @param {Object} options merged table options
+     * @returns {JQuery} table.custom-table
+     */
+    CT.createTableShell = function (options) {
+        const html = CT.renderTableShellHtml(options);
+        const nodes = $.parseHTML(html, document, true);
+        const $table = $(nodes).filter("table").first();
+        if (!$table.length) {
+            throw new Error("KGrid TABLE_SHELL_TEMPLATE must contain a root <table> element");
+        }
+
+        if (options.tableAttrs && options.tableAttrs.constructor === Object) {
+            Object.keys(options.tableAttrs).forEach((att) => {
+                if (att !== "class") {
+                    $table.attr(att, options.tableAttrs[att]);
+                }
+            });
+            if (typeof options.tableAttrs.class === "string" && options.tableAttrs.class) {
+                $table.addClass(options.tableAttrs.class);
+            }
+        }
+
+        return $table;
+    };
+
+    /**
+     * Ensure host contains a KGrid table; build one if missing.
+     * @param {JQuery} $host
+     * @param {Object} options
+     * @returns {JQuery} table element
+     */
+    CT.mountTableShell = function ($host, options) {
+        const $existing = $host.find("table.custom-table, table").first();
+        if ($existing.length) {
+            return $existing;
+        }
+
+        const $shell = CT.getTableInteractionHost($host);
+        if (!$shell.hasClass("custom-table-shell")) {
+            $shell.addClass("custom-table-shell");
+        }
+
+        const $table = CT.createTableShell(options);
+        $shell.append($table);
+        return $table;
+    };
+})(window.KGrid);
+
+
+/* --- field-types.js --- */
+/**
+ * Pluggable field types for filter / insert / update contexts.
+ *
+ * Register: KGrid.registerFieldType(name, plugin)
+ * Or:      KGrid.configure({ fieldTypes: { myType: { ... } } })
+ *
+ * Plugin shape:
+ *   validate?(config, mode, col) — throw on invalid config
+ *   create({ mode, col, config }) — { $input: jQuery, skipValueAttr?: boolean }
+ *   mount?({ mode, $input, col, config, item?, view?, formEl?, rowEl? })
+ *   bindFilterSubmit?($input, onSubmit) — extra events besides input/change (filter only)
+ */
+(function (CT) {
+    CT._fieldTypes = Object.create(null);
+
+    CT.registerFieldType = function (name, plugin, options) {
+        if (!name || typeof name !== "string") {
+            throw new TypeError("registerFieldType(name, plugin): name must be a string");
+        }
+        if (!plugin || typeof plugin.create !== "function") {
+            throw new TypeError("registerFieldType(" + name + "): plugin.create is required");
+        }
+        if (CT._fieldTypes[name] && !(options && options.overwrite)) {
+            throw new Error("Field type already registered: " + name);
+        }
+        CT._fieldTypes[name] = Object.assign({ name }, plugin);
+        return CT;
+    };
+
+    CT.getFieldType = function (name) {
+        return name ? CT._fieldTypes[name] || null : null;
+    };
+
+    CT.listFieldTypes = function () {
+        return Object.keys(CT._fieldTypes);
+    };
+
+    CT.createFieldInput = function ({ mode, col, config }) {
+        const type = config.type ?? "text";
+        const plugin = CT.getFieldType(type);
+        if (!plugin) {
+            return null;
+        }
+        if (typeof plugin.validate === "function") {
+            plugin.validate(config, mode, col);
+        }
+        const result = plugin.create({ mode, col, config });
+        if (!result || !result.$input || !result.$input.length) {
+            throw new Error("Field type \"" + type + "\" create() must return { $input: jQuery }");
+        }
+        result.$input.attr("data-type", type);
+        return result;
+    };
+
+    CT.mountField = function (opts) {
+        const type = opts.config?.type ?? opts.type;
+        const plugin = CT.getFieldType(type);
+        if (!plugin || typeof plugin.mount !== "function") {
+            return;
+        }
+        plugin.mount(opts);
+    };
+
+    CT.bindFieldFilterSubmit = function (type, $input, onSubmit) {
+        const plugin = CT.getFieldType(type);
+        if (plugin && typeof plugin.bindFilterSubmit === "function") {
+            plugin.bindFilterSubmit($input, onSubmit);
+        }
+    };
+
+    CT.isPluggableFieldType = function (type) {
+        return !!CT.getFieldType(type);
+    };
+
+    CT._registerConfiguredFieldTypes = function () {
+        const types = CT._config.fieldTypes;
+        if (!types || typeof types !== "object") {
+            return;
+        }
+        Object.keys(types).forEach((name) => {
+            CT.registerFieldType(name, types[name], { overwrite: true });
+        });
     };
 })(window.KGrid);
 
@@ -274,6 +662,131 @@
 
     CT.initFilterSelect2 = function ($input, filter) {
         CT.initSelect2OnField($input, CT.select2OptionsForFilter($($input), filter), "filter");
+    };
+})(window.KGrid);
+
+
+/* --- field-types-builtins.js --- */
+/**
+ * Built-in field types with no external library dependency (plain HTML / jQuery DOM).
+ */
+(function (CT) {
+    CT.registerFieldType("multi_select", {
+        create({ config }) {
+            const $input = $("<select class='form-select form-select-sm' multiple>");
+            if (Array.isArray(config.options)) {
+                config.options.forEach((opt) => {
+                    $("<option>").text(opt.label).attr("value", opt.value).appendTo($input);
+                });
+            }
+            return { $input, skipValueAttr: true };
+        },
+    });
+
+    CT.registerFieldType("date_range", {
+        create() {
+            const $input = $(
+                "<input autocomplete='off' type='date' class='form-control form-control-sm'/>"
+            );
+            return { $input };
+        },
+    });
+})(window.KGrid);
+
+
+/* --- field-types-integrations.js --- */
+/**
+ * Field types that delegate to host-configured wrappers (Select2, autosuggest, …).
+ * Registered only when KGrid.configure({ select2 }) / configure({ autosuggest }) supplies a function.
+ */
+(function (CT) {
+    function assertRemoteOptions(options, typeName, mode) {
+        if (!options?.url || !options?.idFld || !options?.labelFld) {
+            throw new Error(
+                "Invalid " + typeName + " config (" + mode + "): " + JSON.stringify(options, null, 2)
+            );
+        }
+    }
+
+    const select2Plugin = {
+        validate(config, mode) {
+            if (mode === "filter") {
+                return;
+            }
+            assertRemoteOptions(config.options, "select2", mode);
+        },
+        create({ mode, config }) {
+            const cls =
+                mode === "filter"
+                    ? "form-select form-select-sm select2"
+                    : "form-input form-select form-select-sm select2";
+            const $input = $("<select>").addClass(cls);
+            const defaultSpec =
+                mode === "filter"
+                    ? config.default
+                    : config.value ?? config.default;
+            if (defaultSpec && typeof defaultSpec === "object" && defaultSpec.value != null) {
+                $("<option>")
+                    .text(defaultSpec.label ?? defaultSpec.value)
+                    .attr("value", defaultSpec.value)
+                    .appendTo($input);
+            }
+            return { $input, skipValueAttr: true };
+        },
+        mount({ mode, $input, config, col }) {
+            if (mode === "filter") {
+                CT.initFilterSelect2($input, config);
+                return;
+            }
+            if (mode === "insert") {
+                CT.wrapSelect2($input, {
+                    ...config.options,
+                    default: col?.insert?.default ?? config.default,
+                });
+                return;
+            }
+            if (mode === "update") {
+                CT.initUpdateSelect2($input[0], { options: config.options, value: config.value });
+            }
+        },
+        bindFilterSubmit($input, onSubmit) {
+            $input.on("select2:select select2:clear", onSubmit);
+        },
+    };
+
+    const autosuggestPlugin = {
+        validate(config, mode) {
+            if (mode === "filter") {
+                return;
+            }
+            assertRemoteOptions(config.options, "autosuggest", mode);
+        },
+        create({ mode }) {
+            const $input = $(
+                "<input autocomplete='off' type='text' class='form-control form-control-sm'/>"
+            );
+            if (mode === "insert" || mode === "update") {
+                $input.addClass("form-input");
+            }
+            return { $input };
+        },
+        mount({ $input, config }) {
+            CT.autosuggest($input, config.options ?? config);
+        },
+    };
+
+    CT._syncIntegrationFieldTypes = function () {
+        const integrations = [
+            { name: "select2", hook: CT._config.select2, plugin: select2Plugin },
+            { name: "autosuggest", hook: CT._config.autosuggest, plugin: autosuggestPlugin },
+        ];
+        integrations.forEach(({ name, hook, plugin }) => {
+            if (typeof hook === "function") {
+                CT.registerFieldType(name, plugin, { overwrite: true });
+            } else if (CT._fieldTypes[name]) {
+                delete CT._fieldTypes[name];
+            }
+        });
     };
 })(window.KGrid);
 
@@ -359,8 +872,11 @@
             cell.children("a").attr("data-sortfld",col.name);
             cell.appendTo(labelsRow);
         });
-        if(options.features && (options.features.delete || options.features.create)) {
-            $("<th width='100px'>").appendTo(labelsRow);
+        if (CT.hasActionColumn(options)) {
+            $("<th>")
+                .addClass("kgrid-row-actions")
+                .attr("aria-label", "Actions")
+                .appendTo(labelsRow);
         }
 
         return labelsRow;
@@ -410,52 +926,38 @@
 
             let filter = col.filter;
             let input;
-            let initFilterWidget = null;
-            switch(filter.type) {
-                case "select":
-                    if(!filter.options) {
-                        throw new Error("Column must have a filter.options array when column.filter.type is select: \n"+JSON.stringify(col,null,2));
-                    }
-                    input = $(`<select>`).addClass("form-select form-select-sm");
-                    if(Array.isArray(filter.options)) {
-                        filter.options.forEach((opt)=> {
-                            if(!opt.label || typeof opt.value!=="string") {
-                                throw new Error("Column must have an filter.options object with label and value when column.filter.type is select: \n"+JSON.stringify(col,null,2));
-                            }
-                            $("<option>").text(opt.label).attr("value",opt.value).appendTo(input);
-                        });
-                    }
-                    else {
-                        throw new Error("Column must have an filter.options array when column.filter.type is select: \n"+JSON.stringify(col,null,2));
-                    }
-                    break;
-                case "multi_select":
-                    input = $(`<select class='form-select form-select-sm' multiple>`);
-                    if(Array.isArray(filter.options)) {
-                        filter.options.forEach((opt)=> $("<option>").text(opt.label).attr("value",opt.value).appendTo(input));
-                    }
-                    break;
-                case "autosuggest":
-                    input = $(`<input autocomplete='off' type='text' class='form-control form-control-sm'/>`);
-                    initFilterWidget = (inp) => { CT.autosuggest(inp, filter.options); };
-                    break;
-                case "date_range":
-                    input = $(`<input autocomplete='off' type='date' class='form-control form-control-sm' />`);
-                    break;
-                case "select2":
-                    input = $(`<select class='form-select form-select-sm select2' data-type='select2'/>`);
-                    if(col.filter.default && typeof col.filter.default === "object" && col.filter.default.value) {
-                        $("<option>").text(col.filter.default.label??col.filter.default.value).attr("value",col.filter.default.value).appendTo(input);
-                    }
-                    initFilterWidget = (inp) => CT.initFilterSelect2(inp, filter);
-                    break;
-                default:
-                    input = $(`<input autocomplete='off' type='${filter.type}' class='form-control form-control-sm'/>`);
-            }
-
-            input.appendTo(filterCell);
-            if (initFilterWidget) {
-                initFilterWidget(input);
+            const pluggable = CT.createFieldInput({ mode: "filter", col, config: filter });
+            if (pluggable) {
+                input = pluggable.$input;
+                input.appendTo(filterCell);
+                CT.mountField({ mode: "filter", $input: input, col, config: filter });
+            } else {
+                switch(filter.type) {
+                    case "select":
+                        if(!filter.options) {
+                            throw new Error("Column must have a filter.options array when column.filter.type is select: \n"+JSON.stringify(col,null,2));
+                        }
+                        input = $(`<select>`).addClass("form-select form-select-sm");
+                        if(Array.isArray(filter.options)) {
+                            filter.options.forEach((opt)=> {
+                                if(!opt.label || typeof opt.value!=="string") {
+                                    throw new Error("Column must have an filter.options object with label and value when column.filter.type is select: \n"+JSON.stringify(col,null,2));
+                                }
+                                $("<option>").text(opt.label).attr("value",opt.value).appendTo(input);
+                            });
+                        }
+                        else {
+                            throw new Error("Column must have an filter.options array when column.filter.type is select: \n"+JSON.stringify(col,null,2));
+                        }
+                        input.appendTo(filterCell);
+                        break;
+                    default:
+                        if (!CT.isValidFilterType(filter.type)) {
+                            throw new Error("Unknown filter type: " + filter.type);
+                        }
+                        input = $(`<input autocomplete='off' type='${filter.type}' class='form-control form-control-sm'/>`);
+                        input.appendTo(filterCell);
+                }
             }
 
             input.attr("data-operator", filter.operator);
@@ -468,14 +970,15 @@
                 }
             };
             input.on("input change", submitFilterForm);
-            if (filter.type === "select2") {
-                input.on("select2:select select2:clear", submitFilterForm);
-            }
+            CT.bindFieldFilterSubmit(filter.type, input, submitFilterForm);
         });
 
 
-        if(options.features && (options.features.delete || options.features.update || options.features.create)) {
-            $("<th>").appendTo(filtersRow).attr("data-label", "Actions");
+        if (CT.hasActionColumn(options)) {
+            $("<th>")
+                .addClass("kgrid-row-actions")
+                .attr("data-label", "Actions")
+                .appendTo(filtersRow);
         }
 
         return filterForm;
@@ -536,48 +1039,48 @@
         }
 
         const updateConfig = c.update;
-
+        const updateType = updateConfig.type ?? "text";
         let input;
-        switch(updateConfig.type ?? "text") {
-            case "textarea":
-                input = $(`<textarea class='form-input form-control form-control-sm'>{{${updateConfig.value??c.name}}}</textarea>`);
-                break;
-            case "autosuggest":
-                input = $(`<input autocomplete='off' type='text' class='form-input form-control form-control-sm' data-type='autosuggest'/>`);
-                break;
-            case "select2":
-                input = $(`<select class='form-input form-select form-select-sm select2' data-type='select2'/>`);
-                if(c.update.value && typeof c.update.value === "object" && c.update.value.value) {
-                    $("<option selected>").text(c.update.value.label??c.update.value.value).attr("value",c.update.value.value).appendTo(input);
-                }
-                break;
-            case "select":
-                input = $(`<select class='form-input form-control form-control-sm'/>`);
-                if(!Array.isArray(updateConfig.options)) {
-                    throw new Error("Select column must have an update.options array when column.features.update is true: \n"+JSON.stringify(col,null,2));
-                }
-                const selOptions = [];
-                updateConfig.options.forEach((opt)=> selOptions.push(
-                    "{{#if (eq "+c.name+" '"+opt.value+"')}}<option value='"+opt.value+"' selected>"+opt.label+"</option>{{else}}"+
-                    "<option value='"+opt.value+"'>"+opt.label+"</option>{{/if}}"
-                ));
-                CT.log("selOptions",selOptions);
-                input.html(selOptions.join(""));
-                break;
-            case "hidden":
-                input = $(`<input type='hidden' class='form-input form-control form-control-sm'/>`);
-                break;
-            case "displayonly":
-                $("<div>").addClass("cell-input").append(c.display.template ?? `{{${c.name}}}`).appendTo($cell);
-                return $cell;
-            default:
-                if(CT.VALID_FILTER_TYPES.includes(updateConfig.type)) {
-                    input = $(`<input autocomplete='off' type='${updateConfig.type}' class='form-input form-control form-control-sm'/>`);
-                } else {
-                    throw new Error("Invalid update updateConfig type: "+JSON.stringify(updateConfig,null,2));
-                }
-        }
+        let skipValueAttr = false;
 
+        const pluggable = CT.createFieldInput({ mode: "update", col, config: updateConfig });
+        if (pluggable) {
+            input = pluggable.$input;
+            skipValueAttr = !!pluggable.skipValueAttr;
+        } else {
+            switch(updateType) {
+                case "textarea":
+                    input = $(`<textarea class='form-input form-control form-control-sm'>{{${updateConfig.value??c.name}}}</textarea>`);
+                    skipValueAttr = true;
+                    break;
+                case "select":
+                    input = $(`<select class='form-input form-control form-control-sm'/>`);
+                    if(!Array.isArray(updateConfig.options)) {
+                        throw new Error("Select column must have an update.options array when column.features.update is true: \n"+JSON.stringify(col,null,2));
+                    }
+                    updateConfig.options.forEach((opt) => {
+                        if(typeof opt.label !== "string" || typeof opt.value === "undefined") {
+                            throw new Error("Select update.options entries need label and value: \n"+JSON.stringify(col,null,2));
+                        }
+                        $("<option>").text(opt.label).attr("value", opt.value).appendTo(input);
+                    });
+                    skipValueAttr = true;
+                    break;
+                case "hidden":
+                    input = $(`<input type='hidden' class='form-input form-control form-control-sm'/>`);
+                    break;
+                case "displayonly":
+                    $("<div>").addClass("cell-input").append(c.display.template ?? `{{${c.name}}}`).appendTo($cell);
+                    return $cell;
+                default:
+                    if(CT.isValidInputType(updateType)) {
+                        input = $(`<input autocomplete='off' type='${updateType}' class='form-input form-control form-control-sm'/>`);
+                    } else {
+                        throw new Error("Invalid update updateConfig type: "+JSON.stringify(updateConfig,null,2));
+                    }
+            }
+            input.attr("data-type", updateType);
+        }
 
         if(updateConfig.attrs && typeof updateConfig.attrs === 'object') {
             Object.keys(updateConfig.attrs).forEach(k => input.attr(k, updateConfig.attrs[k]));
@@ -585,14 +1088,12 @@
 
         input.attr("form",formId);
         input.attr("name",c.name);
-        const updateType = updateConfig.type ?? "text";
-        if (updateType !== "select" && updateType !== "select2" && updateType !== "textarea") {
+        if (!skipValueAttr && updateType !== "textarea") {
             const rawValue = updateConfig.value ?? `{{${c.name}}}`;
             if (rawValue != null && typeof rawValue !== "object") {
                 input.attr("value", rawValue);
             }
         }
-        input.attr("data-type", updateType);
 
         if(c.hidden) {
             input.attr("type","hidden").appendTo(editForm);
@@ -670,8 +1171,8 @@
             }
         });
 
-        if(options.features.delete  || options.features.update) {
-            const buttonColumn = $("<td>").appendTo(dataRow);
+        if (CT.hasActionColumn(options)) {
+            const buttonColumn = $("<td>").addClass("kgrid-row-actions").appendTo(dataRow);
             if(options.features.delete) {
                 $("<div>").addClass("btn-group delete-item-grp").appendTo(buttonColumn).append(
                     $("<button>").addClass("btn btn-sm btn-danger delete-item")
@@ -724,7 +1225,7 @@
      * Setup new record row
      * @returns {jQuery}
      */
-    CT.setupNewRecordForm = function (table, options, k) {
+    CT.setupNewRecordForm = function (table, options, grid) {
         if(!options.insertFormRow || options.insertFormRow.constructor!==Object) {
             table.find(".before-main-tbody").remove();
             table.find(".after-main-tbody").remove();
@@ -754,7 +1255,7 @@
                         delete data[key];
                     }
                 });
-                k.instance.newItem(data).then(()=>{
+                grid.instance.newItem(data).then(()=>{
                     event.target.reset();
                     if(typeof options.onNewItemCreated=="function") {
                         options.onNewItemCreated(data);
@@ -790,65 +1291,38 @@
             }
 
             let input;
-            let configOk = true;
-            switch(insertConfig.type ?? "text") {
-                case "autosuggest":
-                    input = $(`<input autocomplete='off' type='text' class='form-input form-control form-control-sm' data-type='autosuggest'/>`);
-                    if(insertConfig.options && typeof insertConfig.options === "object") {
-                        ["url","labelFld","idFld"].forEach(key => {
-                            if(!insertConfig.options[key]) {
-                                configOk = false;
-                            }
-                        });
-                    }
-                    else {
-                        configOk = false;
-                    }
-                    if(!configOk) {
-                        throw new Error("Autosuggest column must have an insert.options object with url, labelFld and onselect when column.features.insert is true: \n"+JSON.stringify(col,null,2));
-                    }
-                    break;
-                case "select2":
-                    input = $(`<select class='form-input form-select form-select-sm select2' data-type='select2'/>`);
-                    if(insertConfig.options && typeof insertConfig.options === "object") {
-                        ["url","labelFld","idFld"].forEach(key => {
-                            if(!insertConfig.options[key]) {
-                                configOk = false;
-                            }
-                        });
-                    }
-                    else {
-                        configOk = false;
-                    }
-
-                    if(!configOk) {
-                        throw new Error("Select2 column must have an insert.options object with url and labelFld when column.features.insert is true: \n"+JSON.stringify(col,null,2));
-                    }
-                    break;
-                case "textarea":
-                    input = $(`<textarea class='form-input form-control form-control-sm'>`);
-                    break;
-                case "select":
-                    input = $(`<select class='form-input form-control form-control-sm'/>`);
-                    if(!insertConfig.options || !Array.isArray(insertConfig.options)) {
-                        throw new Error("Column must have an insert.options array when column.features.insert is true: \n"+JSON.stringify(col,null,2));
-                    }
-                    insertConfig.options.forEach((opt)=>{
-                        if(typeof opt.label!="string" || typeof opt.value=="undefined") {
-                            throw new Error("Column must have an insert.options object with label and value when column.features.insert is true: \n"+JSON.stringify(col,null,2));
+            const insertType = insertConfig.type ?? "text";
+            const pluggable = CT.createFieldInput({ mode: "insert", col, config: insertConfig });
+            if (pluggable) {
+                input = pluggable.$input;
+            } else {
+                switch(insertType) {
+                    case "textarea":
+                        input = $(`<textarea class='form-input form-control form-control-sm'>`);
+                        break;
+                    case "select":
+                        input = $(`<select class='form-input form-control form-control-sm'/>`);
+                        if(!insertConfig.options || !Array.isArray(insertConfig.options)) {
+                            throw new Error("Column must have an insert.options array when column.features.insert is true: \n"+JSON.stringify(col,null,2));
                         }
-                        $("<option>").text(opt.label).attr("value",opt.value).appendTo(input);
-                    });
-                    break;
-                case "hidden":
-                    input = $(`<input type='hidden' class='form-input form-control form-control-sm'/>`);
-                    break;
-                default:
-                    if(CT.VALID_INPUT_TYPES.includes(insertConfig.type)) {
-                        input = $(`<input autocomplete='off' type='${insertConfig.type}' class='form-input form-control form-control-sm'/>`);
-                    } else {
-                        throw new Error("Invalid type: "+JSON.stringify(insertConfig,null,2));
-                    }
+                        insertConfig.options.forEach((opt)=>{
+                            if(typeof opt.label!="string" || typeof opt.value=="undefined") {
+                                throw new Error("Column must have an insert.options object with label and value when column.features.insert is true: \n"+JSON.stringify(col,null,2));
+                            }
+                            $("<option>").text(opt.label).attr("value",opt.value).appendTo(input);
+                        });
+                        break;
+                    case "hidden":
+                        input = $(`<input type='hidden' class='form-input form-control form-control-sm'/>`);
+                        break;
+                    default:
+                        if(CT.isValidInputType(insertType)) {
+                            input = $(`<input autocomplete='off' type='${insertType}' class='form-input form-control form-control-sm'/>`);
+                        } else {
+                            throw new Error("Invalid type: "+JSON.stringify(insertConfig,null,2));
+                        }
+                        input.attr("data-type", insertType);
+                }
             }
 
             if(insertConfig.default != null && insertConfig.default !== "" && !input.val()) {
@@ -881,15 +1355,14 @@
             if(insertConfig.type!=="hidden") {
                 $("<td>").append(input).appendTo(newRecordRow).attr("data-label", col.label);
             }
-            if(insertConfig.type==="select2") {
-                CT.wrapSelect2(input, {
-                    ...insertConfig.options,
-                    default: col.insert?.default ?? insertConfig.default
-                });
-            }
-            if(insertConfig.type==="autosuggest") {
-                CT.autosuggest(input, insertConfig.options);
-            }
+            CT.mountField({
+                mode: "insert",
+                $input: input,
+                col,
+                config: insertConfig,
+                formEl: newRecordForm[0],
+                rowEl: newRecordRow[0],
+            });
             if(insertConfig.events && Array.isArray(insertConfig.events)) {
                 insertConfig.events.forEach(ev=>{
                     input.off(ev.event).on(ev.event, function(e, ...args) {
@@ -899,7 +1372,10 @@
             }
         });
         CT.anchorRowForm(newRecordForm, newRecordRow);
-        const actionColumn = $("<td>").appendTo(newRecordRow).attr("data-label","action");
+        const actionColumn = $("<td>")
+            .addClass("kgrid-row-actions")
+            .appendTo(newRecordRow)
+            .attr("data-label", "action");
         const grp = $("<div>").addClass("btn-group").appendTo(actionColumn);
         $("<button>").addClass("btn btn-sm btn-primary new-item-btn")
             .html("<i class='fas fa-plus-square'></i>")
@@ -948,19 +1424,35 @@
         });
 
         if(options.features.update) {
-            view.el.find("input[data-type='autosuggest']").each((index,input)=>{
-                const configUpdate = colMap.get(input.name).update;
-                if(!configUpdate.options || !configUpdate.options.idFld || !configUpdate.options.labelFld)
-                    throw new Error("Invalid autosuggest config: "+JSON.stringify(configUpdate,null,2));
-                CT.autosuggest($(input), configUpdate.options);
+            view.el.find("[data-type]").each((index, el) => {
+                const type = el.getAttribute("data-type");
+                if (!CT.isPluggableFieldType(type)) {
+                    return;
+                }
+                const col = colMap.get(el.name);
+                if (!col?.update) {
+                    return;
+                }
+                CT.mountField({
+                    mode: "update",
+                    $input: $(el),
+                    col,
+                    config: col.update,
+                    item,
+                    view,
+                });
             });
 
-            view.el.find("select[data-type='select2']").each((index,input)=>{
-                const configUpdate = colMap.get(input.name)?.update;
-                if(!configUpdate?.options || !configUpdate.options.idFld || !configUpdate.options.labelFld) {
-                    throw new Error("Invalid select2 config: "+JSON.stringify(configUpdate,null,2));
+            view.el.find("select[data-type='select']").each((index, input) => {
+                const col = colMap.get(input.name);
+                if (!col) {
+                    return;
                 }
-                CT.initUpdateSelect2(input, configUpdate);
+                const val = item.attributes[col.name];
+                if (val == null || val === "") {
+                    return;
+                }
+                $(input).val(typeof val === "boolean" ? String(val) : val);
             });
 
             view.el.find("form.edit-form").off("submit").on("submit",(event)=>{
@@ -981,11 +1473,14 @@
             view.el.find("button.delete-item").off("click").on("click",(event)=>{
                 event.preventDefault();
                 view.el.addClass("confirm-delete");
-                CT.confirm("Confirmi stergerea?",()=>{
-                    item.delete().catch(CT.onError).finally(()=>view.el.removeClass("confirm-delete"));
-                },()=>{
-                    view.el.removeClass("confirm-delete");
-                });
+                const clearConfirmState = () => view.el.removeClass("confirm-delete");
+                CT.runDeleteConfirm(
+                    { item, view, options },
+                    () => {
+                        item.delete().catch(CT.onError).finally(clearConfirmState);
+                    },
+                    clearConfirmState
+                );
             });
         }
     };
@@ -994,69 +1489,108 @@
 
 /* --- init.js --- */
 (function (CT) {
-    CT.init = async function (k, opts) {
-
-        const table = k.$host.find("table");
-        const options = {...CT.protoOptions,...opts};
-        CT.log("table config options",options);
+    /**
+     * Initialize a KGrid table inside a host element (DOM node or jQuery).
+     * The host may be an empty element; KGrid builds the table DOM when none is present.
+     *
+     * @param {Element|JQuery} host
+     * @param {Object} opts table configuration
+     * @returns {Promise<KGridTable>} API: instance, filterForm, setInteraction, …
+     */
+    CT.init = async function (host, opts) {
+        const $host = CT.resolveHostElement(host);
+        const options = { ...CT.protoOptions, ...opts };
+        const table = CT.mountTableShell($host, options);
+        CT.log("table config options", options);
 
         const initialInteraction = CT.resolveDefaultInteraction(options);
-        CT.applyInteraction(k.$host, initialInteraction);
+        CT.applyInteraction($host, initialInteraction);
 
-        k.setInteraction = (mode, overrides) => {
-            CT.applyInteraction(k.$host, mode, overrides);
-            return k;
+        const api = {
+            $host,
+            instance: null,
+            filterForm: null,
+            find(sel) {
+                return $host.find(sel);
+            },
+            setInteraction(mode, overrides) {
+                CT.applyInteraction($host, mode, overrides);
+                return api;
+            },
+            getInteraction() {
+                const mode = CT.getTableInteractionHost($host).attr("data-interaction");
+                return mode === "edit" ? "edit" : "view";
+            },
+            /** @deprecated prefer setInteraction('edit'|'view') */
+            setEditMode(editMode) {
+                if (typeof editMode !== "boolean") {
+                    throw new TypeError(
+                        "setEditMode(editMode) expects a boolean (true = edit, false = view)"
+                    );
+                }
+                return api.setInteraction(editMode ? "edit" : "view");
+            },
+            /**
+             * @deprecated prefer setInteraction('edit'|'view')
+             * Boolean: true = edit, false = view. No arg / Event: toggle.
+             */
+            toggleEditMode(editMode) {
+                if (
+                    editMode != null &&
+                    typeof editMode === "object" &&
+                    typeof editMode.preventDefault === "function"
+                ) {
+                    editMode = undefined;
+                }
+                if (typeof editMode === "boolean") {
+                    return api.setInteraction(editMode ? "edit" : "view");
+                }
+                return api.setInteraction(api.getInteraction() === "edit" ? "view" : "edit");
+            },
         };
-        k.getInteraction = () => {
-            const mode = CT.getTableInteractionHost(k.$host).attr("data-interaction");
-            return mode === "edit" ? "edit" : "view";
-        };
-        /** @deprecated prefer setInteraction('edit'|'view'); boolean true = edit, false = view */
-        k.setEditMode = (editMode) => {
-            if (typeof editMode !== "boolean") {
-                throw new TypeError("setEditMode(editMode) expects a boolean (true = edit, false = view)");
-            }
-            return k.setInteraction(editMode ? "edit" : "view");
-        };
-        /**
-         * @deprecated prefer setInteraction('edit'|'view')
-         * Boolean: true = edit, false = view.
-         * Otherwise (no arg, or click handler Event): flip view ↔ edit.
-         */
-        k.toggleEditMode = (editMode) => {
-            if (typeof editMode === "boolean") {
-                return k.setInteraction(editMode ? "edit" : "view");
-            }
-            return k.setInteraction(k.getInteraction() === "edit" ? "view" : "edit");
-        };
-        options.columns = options.columns.map(col => CT.setDefaultValues(CT.protoColumnConfig, col));
+
+        options.columns = options.columns.map((col) =>
+            CT.setDefaultValues(CT.protoColumnConfig, col)
+        );
 
         const handlers = options.handlers ?? {};
         delete options.handlers;
-        options.columns.forEach(col=>{
-            ['insert','update','display'].forEach(mode=>{
+        options.columns.forEach((col) => {
+            ["insert", "update", "display"].forEach((mode) => {
                 const events = col[mode].events;
-                if(!events || !Array.isArray(events)) {
-                    throw new Error("Column "+col.name+" events are not an array");
+                if (!events || !Array.isArray(events)) {
+                    throw new Error("Column " + col.name + " events are not an array");
                 }
-                events.forEach(event=>{
-                    if(typeof event.callback==="string") {
-                        const fn = handlers[event.callback] || (options.functions && options.functions[event.callback]);
-                        if(!fn || typeof fn!=="function") {
-                            throw new Error("Event callback function "+event.callback+" not found for column "+col.name+" or is not a function");
+                events.forEach((event) => {
+                    if (typeof event.callback === "string") {
+                        const fn =
+                            handlers[event.callback] ||
+                            (options.functions && options.functions[event.callback]);
+                        if (!fn || typeof fn !== "function") {
+                            throw new Error(
+                                "Event callback function " +
+                                    event.callback +
+                                    " not found for column " +
+                                    col.name +
+                                    " or is not a function"
+                            );
                         }
                         event.callback = fn;
-                    } else if(typeof event.callback!=="function") {
-                        throw new Error("Event callback must be a function for column "+col.name);
+                    } else if (typeof event.callback !== "function") {
+                        throw new Error(
+                            "Event callback must be a function for column " + col.name
+                        );
                     }
                 });
             });
             const display = col.display;
-            if(display && display.events && Array.isArray(display.events)) {
-                display.events.forEach(event=>{
-                    if(typeof event.callback==="string") {
-                        const fn = handlers[event.callback] || (options.functions && options.functions[event.callback]);
-                        if(fn && typeof fn==="function") {
+            if (display && display.events && Array.isArray(display.events)) {
+                display.events.forEach((event) => {
+                    if (typeof event.callback === "string") {
+                        const fn =
+                            handlers[event.callback] ||
+                            (options.functions && options.functions[event.callback]);
+                        if (fn && typeof fn === "function") {
                             event.callback = fn;
                         }
                     }
@@ -1064,83 +1598,93 @@
             }
         });
 
-        if(options.tableAttrs && options.tableAttrs.constructor===Object) {
-            if(typeof options.tableAttrs.class==="string") {
-                CT.log("options.tableAttrs.class",options.tableAttrs.class);
-                table.addClass(options.tableAttrs.class);
-                delete options.tableAttrs.class;
-            }
-            Object.keys(options.tableAttrs).forEach(att => table.attr(att,options.tableAttrs[att]));
-        }
-
         const colMap = new Map();
-        options.columns.forEach(col=>{
-            colMap.set(col.name,col);
+        options.columns.forEach((col) => {
+            colMap.set(col.name, col);
         });
 
-        const labelsRow = CT.setupLabelsHeader(table.find(".thead-labels"),options);
+        const labelsRow = CT.setupLabelsHeader(table.find(".thead-labels"), options);
 
+        const hasActionColumn = CT.hasActionColumn(options);
         const visibleColumnsCount = labelsRow.find("th").length;
+        const dataColumnCount = visibleColumnsCount - (hasActionColumn ? 1 : 0);
+        CT.syncActionColumnColgroup(table, dataColumnCount, hasActionColumn);
 
-        const filterForm = options.filterForm ?? CT.setupFilterHeader(table,options);
+        const filterForm = options.filterForm ?? CT.setupFilterHeader(table, options);
 
         let pagingFooter;
-        if(options.features && options.features.paging) {
-            pagingFooter = CT.setupPagingFooter(table.find(".paging-footer"),options,visibleColumnsCount);
-        }
-        else {
+        if (options.features && options.features.paging) {
+            pagingFooter = CT.setupPagingFooter(
+                table.find(".paging-footer"),
+                options,
+                visibleColumnsCount
+            );
+        } else {
             pagingFooter = null;
             table.find(".paging-footer").remove();
         }
 
-        const noDataTbody = CT.setupNoDataTbody(table.find(".no-data-tbody"),options,visibleColumnsCount);
+        const noDataTbody = CT.setupNoDataTbody(
+            table.find(".no-data-tbody"),
+            options,
+            visibleColumnsCount
+        );
 
         if (options.features && options.features.create) {
-            CT.setupNewRecordForm(table,options,k);
+            CT.setupNewRecordForm(table, options, api);
         }
 
-        this.filterForm = new CT.FilterForm(filterForm);
-        const dataBody = CT.setupDataBody(table.find(".main-tbody"),options,labelsRow,filterForm,pagingFooter,noDataTbody);
+        api.filterForm = new CT.FilterForm(filterForm);
+        const dataBody = CT.setupDataBody(
+            table.find(".main-tbody"),
+            options,
+            labelsRow,
+            filterForm,
+            pagingFooter,
+            noDataTbody
+        );
 
-        let KViewOptions = {
+        const KViewOptions = {
             dontload: true,
             setAttrAsId: options.setAttrAsId ?? false,
-            itemListeners: {"afterrender": (item)=>CT.setupEvents(item,k.find("table"),options,colMap)
-            }
+            itemListeners: {
+                afterrender: (item) =>
+                    CT.setupEvents(item, api.find("table"), options, colMap),
+            },
         };
 
-        const KViews = window.KViews;
+        const KViews = CT.getKViews(options.kviews);
         if (!KViews) {
-            throw new Error("KGrid requires KViews (load kviews before this script).");
+            throw new Error(CT.KVIEWS_MISSING_MSG);
         }
-        k.instance = await KViews.createCollectionInstance(dataBody,KViewOptions);
+        api.instance = await KViews.createCollectionInstance(dataBody, KViewOptions);
 
-        if(options.url) {
-            k.instance.setUrl(options.url);
-            if(options.deleteUrl) {
-                CT.log("set deleteUrl",options.deleteUrl);
-                k.instance.setUrl(options.deleteUrl,"delete");
+        if (options.url) {
+            api.instance.setUrl(options.url);
+            if (options.deleteUrl) {
+                CT.log("set deleteUrl", options.deleteUrl);
+                api.instance.setUrl(options.deleteUrl, "delete");
             }
-            if(options.updateUrl) {
-                CT.log("set updateUrl",options.updateUrl);
-                k.instance.setUrl(options.updateUrl,"update");
+            if (options.updateUrl) {
+                CT.log("set updateUrl", options.updateUrl);
+                api.instance.setUrl(options.updateUrl, "update");
             }
-            if(options.insertUrl) {
-                k.instance.setUrl(options.insertUrl,"insert");
+            if (options.insertUrl) {
+                api.instance.setUrl(options.insertUrl, "insert");
             }
             try {
-                await k.instance.loadFromRemote();
+                await api.instance.loadFromRemote();
             } catch (error) {
                 CT.onError(error);
             }
-        }
-        else if(options.data && options.data.constructor===Array) {
-            const dataCopy = options.data.map(item => ({ attributes: item }));
-            k.instance.loadFromData(dataCopy);
-        }
-        else {
+        } else if (options.data && options.data.constructor === Array) {
+            const dataCopy = options.data.map((item) => ({ attributes: item }));
+            api.instance.loadFromData(dataCopy);
+        } else {
             throw new Error("Invalid data: missing datasource url or data for table");
         }
+
+        return api;
     };
 })(window.KGrid);
 

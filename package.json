@@ -1,17 +1,31 @@
 {
-  "name": "kgrid",
+  "name": "@logimaxx/kgrid",
   "version": "0.1.0",
-  "description": "KGrid — declarative data table for Komponentor + KViews (filter, sort, paging, inline CRUD)",
+  "description": "KGrid — declarative data table for KViews (filter, sort, paging, inline CRUD). Proprietary — Logimaxx System SRL.",
   "main": "dist/kgrid.js",
+  "homepage": "https://logimaxx.ro",
+  "author": {
+    "name": "Sergiu Voicu",
+    "email": "sergiu@logimaxx.ro",
+    "url": "https://logimaxx.ro"
+  },
+  "publisher": "Logimaxx System SRL",
+  "private": true,
   "files": [
     "dist",
     "src",
-    "komponents",
     "styles",
-    "integrations"
+    "docs",
+    "integrations",
+    "LICENSE",
+    "NOTICE.md",
+    "AGENTS.md"
   ],
   "scripts": {
     "build": "node scripts/build.js",
+    "demo": "node demo/server.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "prepare": "npm run build"
   },
   "repository": {
@@ -20,7 +34,6 @@
   },
   "keywords": [
     "kgrid",
-    "komponentor",
     "kviews",
     "jquery",
     "data-table",
@@ -28,14 +41,14 @@
   ],
   "license": "UNLICENSED",
   "peerDependencies": {
-    "jquery": ">=3.7.0"
+    "jquery": ">=3.7.0",
+    "@logimaxx/kviews": ">=1.0.0"
   },
-  "peerDependenciesMeta": {
-    "komponentor": {
-      "optional": true
-    },
-    "kviews": {
-      "optional": true
-    }
+  "devDependencies": {
+    "@logimaxx/kviews": "^1.0.0",
+    "jquery": "^3.7.1",
+    "jsdom": "^26.1.0",
+    "terser": "^5.48.0",
+    "vitest": "^3.2.4"
   }
 }

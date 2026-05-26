@@ -1,20 +1,26 @@
 #!/usr/bin/env node
 /**
- * Concatenate src/*.js into dist/kgrid.js (IIFE modules share window.KGrid).
+ * Concatenate src/*.js into dist/kgrid.js and dist/kgrid.min.js (IIFE modules share window.KGrid).
  */
 const fs = require("fs");
 const path = require("path");
+const { minify } = require("terser");
 
 const root = path.join(__dirname, "..");
 const srcDir = path.join(root, "src");
 const outFile = path.join(root, "dist", "kgrid.js");
+const minFile = path.join(root, "dist", "kgrid.min.js");
 
 const order = [
     "configure.js",
     "constants.js",
     "config.js",
     "dom.js",
+    "table-shell.js",
+    "field-types.js",
     "select2.js",
+    "field-types-builtins.js",
+    "field-types-integrations.js",
     "interaction.js",
     "labels.js",
     "filters.js",
@@ -25,7 +31,10 @@ const order = [
     "init.js",
 ];
 
-const banner = `/*! kgrid | built ${new Date().toISOString()} */\n`;
+const banner =
+    "/*! @logimaxx/kgrid | (c) Logimaxx System SRL — proprietary | https://logimaxx.ro | built " +
+    new Date().toISOString() +
+    " */\n";
 
 let body = banner;
 for (const name of order) {
@@ -39,6 +48,24 @@ for (const name of order) {
     body += "\n";
 }
 
-fs.mkdirSync(path.dirname(outFile), { recursive: true });
-fs.writeFileSync(outFile, body);
-console.log("Wrote", outFile, "(" + body.length + " bytes)");
+async function build() {
+    fs.mkdirSync(path.dirname(outFile), { recursive: true });
+    fs.writeFileSync(outFile, body);
+    console.log("Wrote", outFile, "(" + body.length + " bytes)");
+
+    const minResult = await minify(body, {
+        format: {
+            comments: /^!/,
+        },
+    });
+    if (!minResult.code) {
+        throw new Error("Terser produced empty output");
+    }
+    fs.writeFileSync(minFile, minResult.code);
+    console.log("Wrote", minFile, "(" + minResult.code.length + " bytes)");
+}
+
+build().catch(function (err) {
+    console.error(err);
+    process.exit(1);
+});

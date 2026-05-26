@@ -1,0 +1,140 @@
+{
+  "meta": {
+    "totalRecords": 12,
+    "offset": 0
+  },
+  "data": [
+    {
+      "id": "1",
+      "type": "products",
+      "attributes": {
+        "sku": "WDG-001",
+        "name": "Steel Widget",
+        "category": "hardware",
+        "price": 24.5,
+        "active": true
+      }
+    },
+    {
+      "id": "2",
+      "type": "products",
+      "attributes": {
+        "sku": "WDG-002",
+        "name": "Compact Widget",
+        "category": "hardware",
+        "price": 14.99,
+        "active": true
+      }
+    },
+    {
+      "id": "3",
+      "type": "products",
+      "attributes": {
+        "sku": "SFT-100",
+        "name": "Inventory Sync",
+        "category": "software",
+        "price": 199,
+        "active": true
+      }
+    },
+    {
+      "id": "4",
+      "type": "products",
+      "attributes": {
+        "sku": "SFT-101",
+        "name": "Report Builder",
+        "category": "software",
+        "price": 89,
+        "active": false
+      }
+    },
+    {
+      "id": "5",
+      "type": "products",
+      "attributes": {
+        "sku": "ACC-050",
+        "name": "Mounting Bracket",
+        "category": "accessories",
+        "price": 8.5,
+        "active": true
+      }
+    },
+    {
+      "id": "6",
+      "type": "products",
+      "attributes": {
+        "sku": "ACC-051",
+        "name": "Power Adapter 12V",
+        "category": "accessories",
+        "price": 18,
+        "active": true
+      }
+    },
+    {
+      "id": "7",
+      "type": "products",
+      "attributes": {
+        "sku": "WDG-010",
+        "name": "Heavy Duty Widget",
+        "category": "hardware",
+        "price": 49.95,
+        "active": true
+      }
+    },
+    {
+      "id": "8",
+      "type": "products",
+      "attributes": {
+        "sku": "SFT-200",
+        "name": "API Gateway License",
+        "category": "software",
+        "price": 499,
+        "active": true
+      }
+    },
+    {
+      "id": "9",
+      "type": "products",
+      "attributes": {
+        "sku": "ACC-060",
+        "name": "Cable Kit",
+        "category": "accessories",
+        "price": 12.25,
+        "active": false
+      }
+    },
+    {
+      "id": "10",
+      "type": "products",
+      "attributes": {
+        "sku": "WDG-020",
+        "name": "Mini Widget",
+        "category": "hardware",
+        "price": 9.99,
+        "active": true
+      }
+    },
+    {
+      "id": "11",
+      "type": "products",
+      "attributes": {
+        "sku": "SFT-150",
+        "name": "Audit Trail Module",
+        "category": "software",
+        "price": 149,
+        "active": true
+      }
+    },
+    {
+      "id": "12",
+      "type": "products",
+      "attributes": {
+        "sku": "ACC-070",
+        "name": "Protective Case",
+        "category": "accessories",
+        "price": 22,
+        "active": true
+      }
+    }
+  ]
+}

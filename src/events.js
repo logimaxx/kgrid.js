@@ -33,19 +33,35 @@
         });
 
         if(options.features.update) {
-            view.el.find("input[data-type='autosuggest']").each((index,input)=>{
-                const configUpdate = colMap.get(input.name).update;
-                if(!configUpdate.options || !configUpdate.options.idFld || !configUpdate.options.labelFld)
-                    throw new Error("Invalid autosuggest config: "+JSON.stringify(configUpdate,null,2));
-                CT.autosuggest($(input), configUpdate.options);
+            view.el.find("[data-type]").each((index, el) => {
+                const type = el.getAttribute("data-type");
+                if (!CT.isPluggableFieldType(type)) {
+                    return;
+                }
+                const col = colMap.get(el.name);
+                if (!col?.update) {
+                    return;
+                }
+                CT.mountField({
+                    mode: "update",
+                    $input: $(el),
+                    col,
+                    config: col.update,
+                    item,
+                    view,
+                });
             });
 
-            view.el.find("select[data-type='select2']").each((index,input)=>{
-                const configUpdate = colMap.get(input.name)?.update;
-                if(!configUpdate?.options || !configUpdate.options.idFld || !configUpdate.options.labelFld) {
-                    throw new Error("Invalid select2 config: "+JSON.stringify(configUpdate,null,2));
+            view.el.find("select[data-type='select']").each((index, input) => {
+                const col = colMap.get(input.name);
+                if (!col) {
+                    return;
                 }
-                CT.initUpdateSelect2(input, configUpdate);
+                const val = item.attributes[col.name];
+                if (val == null || val === "") {
+                    return;
+                }
+                $(input).val(typeof val === "boolean" ? String(val) : val);
             });
 
             view.el.find("form.edit-form").off("submit").on("submit",(event)=>{
@@ -66,11 +82,14 @@
             view.el.find("button.delete-item").off("click").on("click",(event)=>{
                 event.preventDefault();
                 view.el.addClass("confirm-delete");
-                CT.confirm("Confirmi stergerea?",()=>{
-                    item.delete().catch(CT.onError).finally(()=>view.el.removeClass("confirm-delete"));
-                },()=>{
-                    view.el.removeClass("confirm-delete");
-                });
+                const clearConfirmState = () => view.el.removeClass("confirm-delete");
+                CT.runDeleteConfirm(
+                    { item, view, options },
+                    () => {
+                        item.delete().catch(CT.onError).finally(clearConfirmState);
+                    },
+                    clearConfirmState
+                );
             });
         }
     };
