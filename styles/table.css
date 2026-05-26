@@ -1,0 +1,180 @@
+.custom-table-shell{
+  border-bottom-left-radius: var(--bs-border-radius-lg, 0.5rem);
+  border-bottom-right-radius: var(--bs-border-radius-lg, 0.5rem);
+
+}
+@media (max-width: 768px) {
+    .card-body{
+        padding: 10px;
+    }
+  .custom-table-shell table,
+  .custom-table-shell thead,
+  .custom-table-shell tbody,
+  .custom-table-shell tr,
+  .custom-table-shell th,
+  .custom-table-shell td {
+    display: block;
+  }
+
+  .custom-table-shell thead {
+    display: none;
+  }
+
+  .custom-table-shell tr {
+    margin-top: 5px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    background: #fff;
+  }
+
+  .custom-table-shell td {
+    padding: 5px 0;
+    border: 0 !important;
+  }
+
+  .custom-table-shell td::before {
+    content: attr(data-label);
+    display: block;
+    font-weight: 600;
+    font-size: 13px;
+    color: #6b7280; /* gri calm */
+    margin-bottom: 6px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #e5e7eb; /* separator subtil */
+  }
+
+  .custom-table-shell td input,
+  .custom-table-shell td select,
+  .custom-table-shell td textarea,
+  .custom-table-shell td .input,
+  .custom-table-shell td .form-control,
+  .custom-table-shell td .your-custom-input-wrapper,
+  .custom-table-shell td button {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+}
+
+tr.new-record-row{
+    background-color: rgb(112, 165, 218,0.5) !important;
+}
+tr.new-record-row td{
+    background-color: rgb(112, 165, 218,0.5) !important;
+}
+tr.confirm-delete{
+    background-color: rgba(255, 0, 0, 0.5) !important;
+}
+tr.confirm-delete td{
+    background-color: rgba(255, 0, 0, 0.5) !important;
+}
+tr.editing{
+    border: 3px dashed #007bff;
+    border-radius: 5px;
+    padding: 5px;
+    margin: 5px;
+    font-weight: bold;
+    color: #007bff;
+    font-size: 14px;
+}
+tr.editing td{
+    background-color: rgb(255, 153, 28) !important;
+}
+div.save-item{
+    display: none;
+}
+.editing div.save-item{
+    display: inline-flex;
+}
+
+.editing .default-action-buttons{
+    display: none;
+}
+.cell-input{
+    display: none;
+}
+.custom-table-shell[data-interaction="view"] .cell-input,
+.custom-table-shell[data-interaction="view"] .delete-item{
+    display: none;
+}
+.custom-table-shell[data-interaction="edit"] .cell-input,
+.custom-table-shell[data-interaction="edit"] .delete-item{
+    display: block;
+}
+.new-record-row{
+    display: none;
+}
+.custom-table-shell[data-interaction="edit"] .new-record-row{
+    display: table-row;
+}
+
+.custom-table-shell[data-allow-insert="false"] .new-record-row {
+    display: none !important;
+}
+.custom-table-shell[data-allow-delete="false"] button.delete-item {
+    display: none !important;
+}
+.custom-table-shell[data-allow-update="false"][data-interaction="edit"] .cell-input{
+    display: none;
+}
+.custom-table-shell[data-allow-update="false"][data-interaction="edit"] .cell-content{
+    display: block;
+}
+.custom-table-shell[data-interaction="view"] .cell-content{
+    display: block;
+}
+.custom-table-shell[data-interaction="edit"] .cell-content{
+    display: none;
+}
+.edit-item-grp {
+    display: none;
+}
+.editing .edit-item-grp{
+    display: inline-flex;
+}
+.editing .delete-item-grp {
+    display: none;
+}
+
+
+.custom-table .thead-labels th{
+    background-color: #2c3e50;
+    color: #fff;
+  }
+  .custom-table th,.custom-table td{
+    padding: 5px;
+  }
+  .custom-table .thead-filters th{
+    background-color: #f1f3f5;
+  }
+
+  .custom-table .thead-labels th a{
+    color: #fff;
+  }
+  .custom-table{
+    font-size: 14px;
+      box-sizing: content-box;
+      margin-bottom: 0;
+      width: 100%;
+      table-layout: fixed;
+  }
+  @media (min-width: 769px) {
+    table.custom-table {
+      border-collapse: separate !important;
+      border-spacing: 0 !important;
+      border-top: 1px solid var(--bs-border-color, #dee2e6) !important;
+      border-left: 1px solid var(--bs-border-color, #dee2e6) !important;
+    }
+    table.custom-table > * > tr > th,
+    table.custom-table > * > tr > td {
+      border-style: solid !important;
+      border-width: 0 1px 1px 0 !important;
+      border-color: var(--bs-border-color, #dee2e6) !important;
+      box-shadow: none !important;
+      background-clip: padding-box;
+    }
+    table.custom-table .thead-labels th {
+      border-right-color: rgba(255, 255, 255, 0.28) !important;
+      border-bottom-color: rgba(255, 255, 255, 0.28) !important;
+    }
+  }

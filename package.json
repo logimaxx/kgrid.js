@@ -1,0 +1,41 @@
+{
+  "name": "kgrid",
+  "version": "0.1.0",
+  "description": "KGrid — declarative data table for Komponentor + KViews (filter, sort, paging, inline CRUD)",
+  "main": "dist/kgrid.js",
+  "files": [
+    "dist",
+    "src",
+    "komponents",
+    "styles",
+    "integrations"
+  ],
+  "scripts": {
+    "build": "node scripts/build.js",
+    "prepare": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/logimaxx/kgrid.git"
+  },
+  "keywords": [
+    "kgrid",
+    "komponentor",
+    "kviews",
+    "jquery",
+    "data-table",
+    "crud"
+  ],
+  "license": "UNLICENSED",
+  "peerDependencies": {
+    "jquery": ">=3.7.0"
+  },
+  "peerDependenciesMeta": {
+    "komponentor": {
+      "optional": true
+    },
+    "kviews": {
+      "optional": true
+    }
+  }
+}
