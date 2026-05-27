@@ -3,29 +3,75 @@ import { column, mountTableShell, tableOptions } from "./helpers/fixtures.js";
 
 describe("field types registry", () => {
     it("registers DOM-only built-ins without external libraries", () => {
-        KGrid.configure({ select2: null, autosuggest: null });
+        KGrid.configure({ customInputTypes: null });
         expect(KGrid.listFieldTypes()).toContain("multi_select");
         expect(KGrid.listFieldTypes()).toContain("date_range");
         expect(KGrid.listFieldTypes()).not.toContain("select2");
         expect(KGrid.listFieldTypes()).not.toContain("autosuggest");
     });
 
-    it("registers select2 and autosuggest when configured by host", () => {
+    it("registers custom input types from configure", () => {
         KGrid.configure({
-            select2: vi.fn(),
-            autosuggest: vi.fn(),
+            customInputTypes: {
+                select2: KGrid.select2(vi.fn()),
+                autosuggest: KGrid.autosuggest(vi.fn()),
+            },
         });
         expect(KGrid.listFieldTypes()).toContain("select2");
         expect(KGrid.listFieldTypes()).toContain("autosuggest");
     });
 
-    it("unregisters select2 when configure clears the wrapper", () => {
-        KGrid.configure({ select2: vi.fn(), autosuggest: vi.fn() });
+    it("unregisters custom input types when cleared with null", () => {
+        KGrid.configure({
+            customInputTypes: {
+                select2: KGrid.select2(vi.fn()),
+                autosuggest: KGrid.autosuggest(vi.fn()),
+            },
+        });
         expect(KGrid.getFieldType("select2")).toBeTruthy();
 
-        KGrid.configure({ select2: null, autosuggest: vi.fn() });
+        KGrid.configure({
+            customInputTypes: {
+                select2: null,
+                autosuggest: KGrid.autosuggest(vi.fn()),
+            },
+        });
         expect(KGrid.getFieldType("select2")).toBeNull();
         expect(KGrid.getFieldType("autosuggest")).toBeTruthy();
+    });
+
+    it("rejects a bare function in customInputTypes", () => {
+        expect(() =>
+            KGrid.configure({
+                customInputTypes: {
+                    bad: vi.fn(),
+                },
+            })
+        ).toThrow(/KGrid\.select2|KGrid\.inputType/);
+    });
+
+    it("inputType builds a mountable plugin", () => {
+        const mount = vi.fn();
+        KGrid.configure({
+            customInputTypes: {
+                picker: KGrid.inputType(mount, {
+                    element: "<input type='color' class='form-control form-control-sm'/>",
+                }),
+            },
+        });
+        const result = KGrid.createFieldInput({
+            mode: "filter",
+            col: column("hue"),
+            config: { type: "picker" },
+        });
+        expect(result.$input.attr("type")).toBe("color");
+        KGrid.mountField({
+            mode: "filter",
+            $input: result.$input,
+            col: column("hue"),
+            config: { type: "picker", options: { x: 1 } },
+        });
+        expect(mount).toHaveBeenCalledWith(result.$input, { x: 1 }, expect.any(Object));
     });
 
     it("allows custom field types via registerFieldType", () => {
@@ -77,20 +123,5 @@ describe("field types registry", () => {
             config: { type: "rating" },
         });
         expect(result.$input.attr("type")).toBe("range");
-    });
-
-    it("configure({ fieldTypes }) merges plugins", () => {
-        KGrid.configure({
-            fieldTypes: {
-                stars: {
-                    create() {
-                        return { $input: $("<input type='number' min='1' max='5'/>") };
-                    },
-                },
-            },
-        });
-
-        expect(KGrid.getFieldType("stars")).toBeTruthy();
-        expect(typeof KGrid.getFieldType("stars").create).toBe("function");
     });
 });

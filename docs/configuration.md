@@ -1,8 +1,128 @@
 # Configuration reference
 
-KGrid tables are driven by a JSON options object passed to `KGrid.init(host, opts)` where `host` is a DOM element or jQuery object (empty, or already containing a `<table>`).
+KGrid tables are driven by a JSON **options** object passed to `KGrid.init(host, opts)`. The host is a DOM element or jQuery object (empty, or already containing a `<table class="custom-table">`).
 
-Defaults: `KGrid.protoOptions` (table), `KGrid.protoColumnConfig` (columns). Per-column settings are deep-merged via `KGrid.setDefaultValues`.
+Table-level options are merged with `KGrid.protoOptions`. Each entry in `columns` is deep-merged with `KGrid.protoColumnConfig` via `KGrid.setDefaultValues`.
+
+**You must pass a `columns` array.** KGrid does not infer columns from your API or local `data` — every field needs an explicit column definition. View text defaults to `{{attribute_name}}` per column; configure `filter`, `insert`, and `update` when those features are enabled.
+
+---
+
+## Complete example
+
+Typical remote JSON:API table with filter, sort, paging, and CRUD. This is the shape to aim for; the sections below explain each part.
+
+```javascript
+await KGrid.init(document.getElementById("grid-host"), {
+  // --- data source (remote) ---
+  url: "/api/products",
+  updateUrl: "/api/products",
+  deleteUrl: "/api/products",
+  insertUrl: "/api/products",
+  type: "products",
+
+  // --- table features (all default false) ---
+  defaultInteraction: "view",
+  features: {
+    filtering: true,
+    sorting: true,
+    paging: true,
+    create: true,
+    update: true,
+    delete: true,
+  },
+  insertFormRow: { position: "top" },
+  noDataTemplate: "<td colspan='99'>No records match your filters.</td>",
+
+  // --- columns: required; one object per field ---
+  columns: [
+    {
+      name: "id",
+      label: "ID",
+      hidden: true,
+      insert: { type: "hidden", events: [] },
+      update: { type: "hidden", events: [] },
+    },
+    {
+      name: "name",
+      label: "Name",
+      features: { sort: true, filter: true, create: true, update: true },
+      // use template to output custom HTML otherwise it will default to  {{name}}
+      display: { template: "<strong>{{name}}</strong>"}, 
+      filter: { type: "text", operator: "~=~" },
+      insert: { type: "text", required: true, events: [] },
+      update: { type: "text", events: [] },
+    },
+    {
+      name: "category",
+      label: "Category",
+      features: { filter: true, create: true, update: true },
+      filter: {
+        type: "select",
+        operator: "=",
+        options: [
+          { label: "All", value: "" },
+          { label: "Hardware", value: "hardware" },
+        ],
+      },
+      insert: {
+        type: "select",
+        options: [{ label: "Hardware", value: "hardware" }],
+        events: [],
+      },
+      update: {
+        type: "select",
+        options: [{ label: "Hardware", value: "hardware" }],
+        events: [],
+      },
+    },
+  ],
+});
+```
+
+Local data only — omit URLs and pass rows as plain objects:
+
+```javascript
+await KGrid.init(host, {
+  data: [{ id: 1, name: "Alpha", category: "hardware" }],
+  features: { filtering: true, sorting: true },
+  columns: [/* same column shape as above */],
+});
+```
+
+---
+
+## How the example fits together
+
+| Block | Role |
+|-------|------|
+| `url` + `type` | Load JSON:API collection via KViews (`updateUrl` / `deleteUrl` / `insertUrl` for per-item CRUD) |
+| `data` | Alternative to `url` — local array, no remote load |
+| `features` | Turn on filter row, sortable headers, paging footer, insert row, inline edit, row delete |
+| `defaultInteraction` | `"view"` (read-only cells) or `"edit"` (inputs + row-actions column) |
+| `columns` | **Required** — defines every field the table knows about |
+
+### Column checklist
+
+For **each** column object:
+
+1. Set `name` (required when that column uses sort, filter, create, or update).
+2. Set `label` (header text).
+3. Set column `features`: which of `sort`, `filter`, `create`, `update` apply to this field.
+4. Configure the **field blocks** that match those features:
+
+| When enabled | Configure | Purpose |
+|--------------|-----------|---------|
+| View mode (optional) | `display` | Custom Handlebars HTML or click handlers; omit for `{{name}}` |
+| `features.filter` + table `features.filtering` | `filter` | Filter control in header (`type`, `operator`, `options` for selects) |
+| `features.create` + table `features.create` | `insert` | Control in the new-record row (`type`, `required`, `options`, …) |
+| `features.update` + table `features.update` | `update` | Inline edit control in data rows |
+
+Proto defaults fill gaps: view cells use `{{name}}` when `display` is omitted; `insert`/`update` default to `type: "text"`. **Select-like types need `options`**, pluggable types need `KGrid.configure()` hooks, and **`events` must be an array** on `insert` and `update` when you define those blocks (use `events: []` when you have no handlers).
+
+Table `features.*` gates whole UI regions; column `features.*` gates controls inside those regions. Example: `features.filtering: true` on the table plus `features.filter: true` on a column plus a `filter: { type: "text", … }` block produces a filter input for that column.
+
+---
 
 ## Table options
 
@@ -20,21 +140,11 @@ Provide **either** a remote URL **or** a local array:
 | `type` | `string` | JSON:API resource type (e.g. `products`) — passed to KViews |
 | `kviews` | `object` | Optional KViews override for this table only |
 
-```javascript
-// Remote JSON:API (typical)
-{
-  url: "/api/products",
-  updateUrl: "/api/products",
-  deleteUrl: "/api/products",
-  insertUrl: "/api/products",
-  type: "products",
-}
-
-// Local
-{ data: [{ id: 1, name: "Alpha" }] }
-```
+`init` throws if both `url` and `data` are missing.
 
 ### Features
+
+All default to `false`:
 
 ```javascript
 features: {
@@ -117,24 +227,34 @@ Column events may reference callbacks by **name**:
 }
 ```
 
+Insert/update handlers must resolve to functions at `init` or initialization throws. Display handlers: a missing name leaves the string and fails at click time.
+
 Also resolvable via `options.functions[callbackName]`.
+
+---
 
 ## Column configuration
 
+Each element of `columns: []`:
+
 | Field | Type | Description |
 |-------|------|-------------|
-| `name` | `string` | Field name (required for sort/filter/update) |
+| `name` | `string` | Field name (**required** for sort, filter, create, update on that column) |
 | `label` | `string` | Header text |
-| `hidden` | `boolean` | Hide from UI; may still be in forms |
+| `hidden` | `boolean` | Hide from UI; may still participate in forms (e.g. `id` as `hidden`) |
 | `attrs` | `object` | HTML attributes on header/cells |
-| `features` | `object` | `create`, `update`, `filter`, `sort` per column |
+| `features` | `object` | `create`, `update`, `filter`, `sort` per column (default all `false`) |
 
 ### Display (`display`)
 
+**Optional.** If you omit `display`, view-mode cells render `{{name}}` using the column’s `name`.
+
+Set `display` only when you need custom markup or DOM events:
+
 | Field | Type | Description |
 |-------|------|-------------|
-| `template` | `string` | Handlebars HTML; default `{{fieldName}}` |
-| `events` | `array` | `{ selector, event, callback }` |
+| `template` | `string` | Handlebars HTML; defaults to `{{name}}` when omitted |
+| `events` | `array` | `{ selector, event, callback }`; defaults to `[]` from proto |
 
 Use simple `{{field}}` in templates. KGrid does not ship Handlebars helpers (`eq`, `#if` on arbitrary helpers, etc.).
 
@@ -148,9 +268,9 @@ Use simple `{{field}}` in templates. KGrid does not ship Handlebars helpers (`eq
 | `placeholder` | `string` | |
 | `disabled` / `readonly` / `required` | `boolean` | |
 | `dontsave` | `boolean` | Omit on submit |
-| `options` | `array` \| `object` | `select` options or remote widget config |
+| `options` | `array` \| `object` | **Required** for `select` (and similar) when create/update is enabled |
 | `attrs` | `object` | Extra HTML attributes |
-| `events` | `array` | `{ event, callback }` |
+| `events` | `array` | `{ event, callback }` — use `[]` if none |
 
 Check types with `KGrid.isValidInputType(type)`.
 
@@ -163,10 +283,13 @@ Check types with `KGrid.isValidInputType(type)`.
 | `default` | `any` | | Initial value |
 | `placeholder` | `string` | `""` | |
 | `options` | `array` \| `object` | | For `select`, `multi_select`, `select2`, … |
+| `debounceMs` | `number` | `configure({ filterDebounceMs })` | Ms to wait after typing before filter API call; `0` = immediate |
 
 Check types with `KGrid.isValidFilterType(type)`.
 
-Filter controls use `form=""` pointing at a hidden `<form>` (rows cannot wrap one `<form>`).
+Filter controls use `form=""` pointing at a hidden `<form>` (rows cannot wrap one `<form>`). Filter submits are debounced by default (`filterDebounceMs: 300`); set `debounceMs: 0` on a column/filter to make that control submit immediately.
+
+---
 
 ## Field types (summary)
 
@@ -175,77 +298,13 @@ Filter controls use `form=""` pointing at a hidden `<form>` (rows cannot wrap on
 | Native HTML | filter, insert, update | `text`, `number`, `select`, … |
 | `multi_select` | filter | Built-in |
 | `date_range` | filter | Built-in single date input |
-| `select2` | filter, insert, update | Requires `configure({ select2 })` |
-| `autosuggest` | filter, insert, update | Requires `configure({ autosuggest })` |
-| Custom | any | `registerFieldType` |
+| `select2` | filter, insert, update | `customInputTypes: { select2: KGrid.select2(fn) }` + `kgrid-widgets.js` |
+| `autosuggest` | filter, insert, update | `customInputTypes: { autosuggest: KGrid.autosuggest(fn) }` + `kgrid-widgets.js` |
+| Custom | any | `customInputTypes` or `registerFieldType` |
 
 Details: [field-types.md](field-types.md).
 
-## Example: full table config
-
-```javascript
-{
-  url: "/api/products",
-  updateUrl: "/api/products",
-  deleteUrl: "/api/products",
-  insertUrl: "/api/products",
-  type: "products",
-  defaultInteraction: "view",
-  features: {
-    filtering: true,
-    sorting: true,
-    paging: true,
-    create: true,
-    update: true,
-    delete: true,
-  },
-  insertFormRow: { position: "top" },
-  noDataTemplate: "<td colspan='99'>No records match your filters.</td>",
-  columns: [
-    {
-      name: "id",
-      label: "ID",
-      hidden: true,
-      display: { template: "{{id}}", events: [] },
-      insert: { type: "hidden", events: [] },
-      update: { type: "hidden", events: [] },
-    },
-    {
-      name: "name",
-      label: "Name",
-      features: { sort: true, filter: true, create: true, update: true },
-      display: { template: "{{name}}", events: [] },
-      filter: { type: "text", operator: "~=~" },
-      insert: { type: "text", required: true, events: [] },
-      update: { type: "text", events: [] },
-    },
-    {
-      name: "category",
-      label: "Category",
-      features: { filter: true, create: true, update: true },
-      display: { template: "{{category}}", events: [] },
-      filter: {
-        type: "select",
-        operator: "=",
-        options: [
-          { label: "All", value: "" },
-          { label: "Hardware", value: "hardware" },
-        ],
-      },
-      insert: {
-        type: "select",
-        options: [{ label: "Hardware", value: "hardware" }],
-        events: [],
-      },
-      update: {
-        type: "select",
-        options: [{ label: "Hardware", value: "hardware" }],
-        events: [],
-      },
-    },
-  ],
-}
-```
+---
 
 ## Shell / DOM (generated by KGrid)
 

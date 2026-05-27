@@ -76,16 +76,18 @@
             operator: "~=~",
             default: null,
             placeholder: "",
-            options: null
+            options: null,
+            /** Override KGrid.configure({ filterDebounceMs }); 0 = submit immediately */
+            debounceMs: null,
         }
     };
 
     CT.VALID_NATIVE_INPUT_TYPES = ["displayonly","text","textarea","number","date","datetime","time","checkbox","radio","file","password","email","url","search","tel","select","hidden"];
     /** @deprecated use VALID_NATIVE_INPUT_TYPES or isValidInputType() */
-    CT.VALID_INPUT_TYPES = CT.VALID_NATIVE_INPUT_TYPES.concat(["select2","autosuggest"]);
+    CT.VALID_INPUT_TYPES = CT.VALID_NATIVE_INPUT_TYPES.slice();
     CT.VALID_NATIVE_FILTER_TYPES = CT.VALID_NATIVE_INPUT_TYPES.filter((t) => t !== "displayonly");
     /** @deprecated use isValidFilterType() */
-    CT.VALID_FILTER_TYPES = CT.VALID_NATIVE_FILTER_TYPES.concat(["select2","autosuggest","multi_select","date_range"]);
+    CT.VALID_FILTER_TYPES = CT.VALID_NATIVE_FILTER_TYPES.concat(["multi_select","date_range"]);
 
     CT.isValidInputType = function (type) {
         return CT.VALID_NATIVE_INPUT_TYPES.includes(type) || CT.isPluggableFieldType(type);

@@ -1,132 +1,92 @@
 # Field types
 
-KGrid builds filter, insert, and update controls from each column’s `filter.type`, `insert.type`, and `update.type`. Types fall into three categories:
+KGrid builds filter, insert, and update controls from `filter.type`, `insert.type`, and `update.type`.
 
 | Category | Examples | Setup |
 |----------|----------|--------|
-| **Native HTML** | `text`, `number`, `date`, `select`, `textarea`, … | Always available |
-| **DOM built-ins** | `multi_select`, `date_range` | Always registered |
-| **Integrations** | `select2`, `autosuggest` | Registered when you pass wrappers in `KGrid.configure()` |
-| **Custom** | any name you choose | `KGrid.registerFieldType()` or `configure({ fieldTypes })` |
+| **Native HTML** | `text`, `number`, `select`, … | Built in |
+| **DOM built-ins** | `multi_select`, `date_range` | Built in |
+| **Your widgets** | `select2`, `autosuggest`, anything | `configure({ customInputTypes })` |
 
-Use `KGrid.isValidInputType(type)` and `KGrid.isValidFilterType(type)` instead of the deprecated `VALID_INPUT_TYPES` / `VALID_FILTER_TYPES` arrays.
+Check types: `KGrid.isValidInputType(type)`, `KGrid.isValidFilterType(type)`.
 
-## Native HTML types
+## Custom input types (one pattern)
 
-**Insert / update** (`VALID_NATIVE_INPUT_TYPES`):
-
-`displayonly`, `text`, `textarea`, `number`, `date`, `datetime`, `time`, `checkbox`, `radio`, `file`, `password`, `email`, `url`, `search`, `tel`, `select`, `hidden`
-
-**Filter** (same set minus `displayonly`, plus pluggable types):
-
-`multi_select`, `date_range`, `select2`, `autosuggest`, and any registered custom type.
-
-### `select` (native)
-
-Options are built with jQuery — **no Handlebars helpers** in the control markup. After each row renders, update-mode `<select>` values are set from `item.attributes` in `setupEvents`.
-
-```javascript
-update: {
-  type: "select",
-  options: [
-    { label: "Hardware", value: "hardware" },
-    { label: "Software", value: "software" },
-  ],
-  events: [],
-}
-```
-
-### `multi_select` (filter)
-
-```javascript
-filter: {
-  type: "multi_select",
-  options: [
-    { label: "A", value: "a" },
-    { label: "B", value: "b" },
-  ],
-}
-```
-
-### `date_range` (filter)
-
-Single date input (filter row). For a true from/to range, register a custom field type (see below).
-
-## Integration types (`select2`, `autosuggest`)
-
-These are **not** bundled. When you call `KGrid.configure({ select2: fn })` or `configure({ autosuggest: fn })`, KGrid registers the corresponding field type plugin. Removing the hook unregisters the type.
-
-Remote lookup config (`insert` / `update` / filter where applicable):
-
-```javascript
-options: {
-  url: "/api/lookup",
-  idFld: "id",
-  labelFld: "name",
-}
-```
-
-Filter `select2` may omit `url` / `idFld` / `labelFld` validation; insert/update require them.
-
-## Custom field type plugin
-
-```javascript
-KGrid.registerFieldType("daterange", {
-  validate(config, mode, col) {
-    if (!config.startName || !config.endName) {
-      throw new Error("daterange: startName and endName required");
-    }
-  },
-  create({ mode, col, config }) {
-    const $wrap = $("<div class='d-flex gap-1'/>");
-    const $start = $("<input type='date' class='form-control form-control-sm'/>")
-      .attr("name", config.startName);
-    const $end = $("<input type='date' class='form-control form-control-sm'/>")
-      .attr("name", config.endName);
-    $wrap.append($start, $end);
-    return { $input: $wrap, skipValueAttr: true };
-  },
-  bindFilterSubmit($input, onSubmit) {
-    $input.find("input").on("change", onSubmit);
-  },
-  mount({ mode, $input, config, item }) {
-    // optional: widget init after row render (update mode)
-  },
-});
-```
-
-| Hook | Required | Purpose |
-|------|----------|---------|
-| `create({ mode, col, config })` | Yes | Return `{ $input: jQuery, skipValueAttr?: boolean }` |
-| `validate(config, mode, col)` | No | Throw on bad column config |
-| `mount(opts)` | No | Initialize widget after DOM is in the page |
-| `bindFilterSubmit($input, onSubmit)` | No | Extra filter events (e.g. Select2 clear) |
-
-`mode` is `"filter"`, `"insert"`, or `"update"`.
-
-Bulk registration:
+Register plugins once in `configure`. Each value must be a **plugin** — an object with at least `create()`:
 
 ```javascript
 KGrid.configure({
-  fieldTypes: {
-    daterange: { /* plugin */ },
+  customInputTypes: {
+    select2: KGrid.select2(select2wrapper),           // after kgrid-widgets.js
+    autosuggest: KGrid.autosuggest(function ($i, o) { return $i.autosuggest(o); }),
+    rating: {
+      create() {
+        return { $input: $("<input type='range' min='1' max='5'/>") };
+      },
+    },
   },
 });
 ```
 
-## Display templates (Handlebars)
+Columns use the name: `filter: { type: "select2", options: { url, idFld, labelFld } }`.
 
-`display.template` is compiled by **KViews** (Handlebars). Stick to simple interpolations (`{{name}}`) unless your app registers helpers globally. Avoid helpers like `eq` in templates unless you provide them — KGrid does not register Handlebars helpers.
+Remove a type with `null`: `customInputTypes: { select2: null }`.
 
-## API summary
+### Lifecycle (what the plugin does)
 
-| Method | Description |
-|--------|-------------|
-| `KGrid.registerFieldType(name, plugin, { overwrite? })` | Register or replace a type |
-| `KGrid.getFieldType(name)` | Lookup plugin |
-| `KGrid.listFieldTypes()` | All registered names |
-| `KGrid.createFieldInput({ mode, col, config })` | Build control (internal / tests) |
-| `KGrid.mountField(opts)` | Run `mount` hook |
-| `KGrid.isPluggableFieldType(type)` | Registered plugin type? |
+1. **`create({ mode, col, config })`** — build the control; return `{ $input: jQuery }`.
+2. **`mount({ mode, $input, config, col, … })`** — optional; init Select2, autosuggest, etc. after the node is in the table.
+3. **`validate?(config, mode, col)`** — optional; throw on bad column config.
+4. **`filterEvents?`** — optional on the plugin (or on the object returned from `create()` in filter mode): jQuery event names that submit the filter form (`"change"`, `"input"`, …). Set `false` when the widget only uses `bindFilterSubmit` (e.g. Select2). If omitted: `"change"` for `<select>`, `"input"` otherwise.
+5. **`filterDebounceMs?`** — optional on plugin; column `filter.debounceMs` overrides. Global default: `KGrid.configure({ filterDebounceMs: 300 })`. When `debounceMs > 0`, filter submissions are debounced for the resolved submit event (`"input"` or `"change"` depending on control).
+6. **`bindFilterSubmit?($input, onSubmit)`** — optional; widget-specific events (`select2:select`, …) in addition to `filterEvents`.
 
-See also [integration.md](integration.md) for `configure()` and host wrappers.
+### Helpers
+
+| Helper | Use for |
+|--------|---------|
+| `KGrid.select2(wrapper)` | Select2 (`integrations/kgrid-widgets.js`) |
+| `KGrid.autosuggest(wrapper)` | Autosuggest (same file) |
+| `KGrid.inputType(mount, { element })` | Any “static HTML + mount widget” control |
+
+Simple custom control without an integration file:
+
+```javascript
+customInputTypes: {
+  color: KGrid.inputType(
+    function ($input) { /* init widget */ },
+    { element: "<input type='color' class='form-control form-control-sm'/>", filterEvents: "change" }
+  ),
+}
+```
+
+### Minimal example (no extra libraries)
+
+See [`integrations/kgrid-plugin-demo-select.js`](../integrations/kgrid-plugin-demo-select.js) and the [demo](../demo/) **Category** column:
+
+```javascript
+KGrid.configure({
+  customInputTypes: { demo_select: KGrid.demoSelect() },
+});
+// column: filter / insert / update { type: "demo_select", options: [...] }
+```
+
+### Load order (Select2 / autosuggest)
+
+1. jQuery, KViews, `kgrid.js`
+2. `integrations/kgrid-widgets.js` (defines `KGrid.select2`, `KGrid.autosuggest`)
+3. Select2 / autosuggest libraries
+4. `KGrid.configure({ customInputTypes: … })`
+5. `KGrid.init(…)`
+
+## Native HTML & built-ins
+
+See previous sections in this file for `select`, `multi_select`, `date_range`. Native types need no registration.
+
+## Direct API
+
+`KGrid.registerFieldType(name, plugin)` — same plugin shape; useful in tests or dynamic registration.
+
+## Display templates
+
+`display.template` uses KViews/Handlebars. Keep templates simple (`{{field}}`) unless your app registers helpers globally.

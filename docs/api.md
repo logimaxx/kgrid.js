@@ -14,11 +14,11 @@ Merge host integration hooks. Call before initializing tables.
 | `deleteConfirm` | `(context, onConfirm, onCancel?) => void` | `null` — falls back to `confirm` + `DEFAULT_DELETE_CONFIRM_MESSAGE` |
 | `serializeForm` | `(form, columns?) => object` | `FormData` → plain object |
 | `kviews` | KViews module | `window.KViews` |
-| `select2` | `($input, options) => void` | `null` — registers `select2` field type when set |
-| `autosuggest` | `($input, options) => void` | `null` — registers `autosuggest` field type when set |
-| `fieldTypes` | `Record<string, FieldTypePlugin>` | Registers custom types on configure |
+| `customInputTypes` | `Record<string, FieldTypePlugin>` | Each value: `{ create, mount?, … }` (use `KGrid.select2(fn)` etc.) |
+| `filterDebounceMs` | `number` | Default delay (ms) before filter API submit on the resolved submit event (`input` or `change`); `0` = immediate (default `300`) |
+| `fieldTypes` | same as `customInputTypes` | **Deprecated** alias |
 
-Returns `KGrid` (chainable). Calling `configure` re-syncs integration field types (`select2` / `autosuggest`).
+Returns `KGrid` (chainable). Re-syncs `customInputTypes` on every call.
 
 ### `KGrid.getKViews(override?)`
 
@@ -35,11 +35,16 @@ Returns `null` if missing. `init` throws `KGrid.KVIEWS_MISSING_MSG`.
 | Symbol | Description |
 |--------|-------------|
 | `KGrid.registerFieldType(name, plugin, { overwrite? })` | Register pluggable widget |
+| `KGrid.unregisterFieldType(name)` | Remove a registered type |
+| `KGrid.inputType(mount, { element, … })` | Build a simple plugin (core) |
+| `KGrid.select2(wrapper)` / `KGrid.autosuggest(wrapper)` | Build plugins (`integrations/kgrid-widgets.js`) |
 | `KGrid.getFieldType(name)` | Lookup or `null` |
 | `KGrid.listFieldTypes()` | Registered type names |
 | `KGrid.createFieldInput({ mode, col, config })` | Build DOM (`mode`: `filter` \| `insert` \| `update`) |
 | `KGrid.mountField(opts)` | Run plugin `mount` |
-| `KGrid.bindFieldFilterSubmit(type, $input, onSubmit)` | Plugin filter events |
+| `KGrid.bindFilterInputEvents({ type, $input, onSubmit, createResult? })` | Bind filter submit (uses `filterEvents` + `bindFilterSubmit`) |
+| `KGrid.resolveFilterEvents({ plugin, $input, createResult? })` | Resolve event string for a filter control |
+| `KGrid.bindFieldFilterSubmit(type, $input, onSubmit)` | Plugin-only extra filter events |
 | `KGrid.isPluggableFieldType(type)` | Registered plugin? |
 | `KGrid.isValidInputType(type)` | Native or plugin (insert/update) |
 | `KGrid.isValidFilterType(type)` | Native or plugin (filter) |
@@ -50,8 +55,8 @@ See [field-types.md](field-types.md).
 
 - `KGrid.log`, `onError`, `confirm`, `runDeleteConfirm`, `serializeForm`
 - `KGrid.DEFAULT_DELETE_CONFIRM_MESSAGE` — default text when `deleteConfirm` is not set
-- `KGrid.wrapSelect2`, `KGrid.autosuggest`
-- Select2: `initFilterSelect2`, `initUpdateSelect2`, `select2OptionsWithDefault`, …
+
+`KGrid.select2.helpers` — Select2 option helpers (after loading `kgrid-widgets.js`).
 
 ### `KGrid.resolveHostElement(host)`
 

@@ -82,28 +82,15 @@ describe("KGrid.configure", () => {
         expect(typeof confirm.mock.calls[0][1]).toBe("function");
     });
 
-    it("wrapSelect2 requires configure select2", () => {
-        KGrid.configure({ select2: null, autosuggest: vi.fn() });
-        const $input = $("<select>");
-        expect(() => KGrid.wrapSelect2($input, {})).toThrow(
-            /configure\(\{ select2/
-        );
-    });
-
-    it("autosuggest requires configure autosuggest", () => {
-        KGrid.configure({ select2: vi.fn(), autosuggest: null });
-        const $input = $("<input>");
-        expect(() => KGrid.autosuggest($input, {})).toThrow(
-            /configure\(\{ autosuggest/
-        );
-    });
-
-    it("wrapSelect2 delegates to configured handler", () => {
-        const select2 = vi.fn();
-        KGrid.configure({ select2 });
-        const $input = $("<select>");
-        KGrid.wrapSelect2($input, { url: "/x" });
-        expect(select2).toHaveBeenCalledWith($input, { url: "/x" });
+    it("syncs customInputTypes on every configure call", () => {
+        KGrid.configure({
+            customInputTypes: {
+                select2: KGrid.select2(vi.fn()),
+                autosuggest: null,
+            },
+        });
+        expect(KGrid.getFieldType("select2")).toBeTruthy();
+        expect(KGrid.listFieldTypes()).not.toContain("autosuggest");
     });
 
     it("getKViews prefers configure({ kviews }) over window", () => {

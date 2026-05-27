@@ -31,6 +31,129 @@ describe("setupFilterHeader", () => {
         expect($input.attr("data-operator")).toBe("~=~");
     });
 
+    it("uses plugin filterEvents when registered (debounced submit)", () => {
+        KGrid.registerFieldType(
+            "picker",
+            {
+                filterEvents: "change",
+                create() {
+                    return { $input: $("<input type='text' class='form-control form-control-sm'/>") };
+                },
+            },
+            { overwrite: true }
+        );
+        const { $table } = mountTableShell();
+        const opts = tableOptions({
+            features: { filtering: true },
+            columns: [
+                column("x", {
+                    features: { filter: true },
+                    filter: { type: "picker" },
+                }),
+            ],
+        });
+        const $form = KGrid.setupFilterHeader($table, opts);
+        const submitSpy = vi.fn();
+        $form.on("submit", (e) => {
+            e.preventDefault();
+            submitSpy();
+        });
+        const $input = $table.find(".thead-filters input[name='x']");
+        vi.useFakeTimers();
+        $input.val("a").trigger("input");
+        expect(submitSpy).not.toHaveBeenCalled();
+        $input.trigger("change");
+        expect(submitSpy).not.toHaveBeenCalled();
+        vi.advanceTimersByTime(300);
+        expect(submitSpy).toHaveBeenCalledOnce();
+        vi.useRealTimers();
+    });
+
+    it("select filter submits once per change (not input+change) (debounced)", () => {
+        const { $table } = mountTableShell();
+        const opts = tableOptions({
+            features: { filtering: true },
+            columns: [
+                column("category", {
+                    features: { filter: true },
+                    filter: {
+                        type: "select",
+                        operator: "=",
+                        options: [
+                            { label: "All", value: "" },
+                            { label: "A", value: "a" },
+                        ],
+                    },
+                }),
+            ],
+        });
+        const $form = KGrid.setupFilterHeader($table, opts);
+        const submitSpy = vi.fn();
+        $form.on("submit", (e) => {
+            e.preventDefault();
+            submitSpy();
+        });
+
+        vi.useFakeTimers();
+        const $select = $table.find(".thead-filters select[name='category']");
+        $select.val("a").trigger("input").trigger("change");
+        expect(submitSpy).not.toHaveBeenCalled();
+        vi.advanceTimersByTime(300);
+        expect(submitSpy).toHaveBeenCalledTimes(1);
+        vi.useRealTimers();
+    });
+
+    it("debounces text filter input by global filterDebounceMs", () => {
+        vi.useFakeTimers();
+        const { $table } = mountTableShell();
+        const opts = tableOptions({
+            features: { filtering: true },
+            columns: [
+                column("name", {
+                    features: { filter: true },
+                    filter: { type: "text" },
+                }),
+            ],
+        });
+        const $form = KGrid.setupFilterHeader($table, opts);
+        const submitSpy = vi.fn();
+        $form.on("submit", (e) => {
+            e.preventDefault();
+            submitSpy();
+        });
+
+        const $input = $table.find(".thead-filters input[name='name']");
+        $input.val("a").trigger("input");
+        expect(submitSpy).not.toHaveBeenCalled();
+        vi.advanceTimersByTime(299);
+        expect(submitSpy).not.toHaveBeenCalled();
+        vi.advanceTimersByTime(1);
+        expect(submitSpy).toHaveBeenCalledOnce();
+        vi.useRealTimers();
+    });
+
+    it("column debounceMs: 0 submits text filter immediately", () => {
+        const { $table } = mountTableShell();
+        const opts = tableOptions({
+            features: { filtering: true },
+            columns: [
+                column("name", {
+                    features: { filter: true },
+                    filter: { type: "text", debounceMs: 0 },
+                }),
+            ],
+        });
+        const $form = KGrid.setupFilterHeader($table, opts);
+        const submitSpy = vi.fn();
+        $form.on("submit", (e) => {
+            e.preventDefault();
+            submitSpy();
+        });
+
+        $table.find(".thead-filters input[name='name']").val("x").trigger("input");
+        expect(submitSpy).toHaveBeenCalledOnce();
+    });
+
     it("FilterForm.filter sets value and submits", () => {
         const { $table } = mountTableShell();
         const opts = tableOptions({

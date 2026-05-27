@@ -19,6 +19,9 @@
                 onCancel();
             }
         },
+        customInputTypes: {
+            demo_select: KGrid.demoSelect(),
+        },
     });
 
     const tableOptions = {
@@ -72,7 +75,7 @@
                 features: { sort: true, filter: true, create: true, update: true },
                 display: { template: "{{category}}", events: [] },
                 filter: {
-                    type: "select",
+                    type: "demo_select",
                     operator: "=",
                     options: [
                         { label: "All", value: "" },
@@ -82,7 +85,7 @@
                     ],
                 },
                 insert: {
-                    type: "select",
+                    type: "demo_select",
                     options: [
                         { label: "Hardware", value: "hardware" },
                         { label: "Software", value: "software" },
@@ -91,7 +94,7 @@
                     events: [],
                 },
                 update: {
-                    type: "select",
+                    type: "demo_select",
                     options: [
                         { label: "Hardware", value: "hardware" },
                         { label: "Software", value: "software" },

@@ -24,6 +24,8 @@
       JSON:API at <code>/api/products</code> (in-memory Node server; seed from
       <code>demo/data/products.json</code>).
       Run <code>npm run demo</code> then open this page.
+      <strong>Category</strong> uses the <code>demo_select</code> custom input type
+      (<code>integrations/kgrid-plugin-demo-select.js</code>).
     </p>
   </header>
 
@@ -45,6 +47,7 @@
   <script src="https://cdn.jsdelivr.net/npm/handlebars@4.7.8/dist/handlebars.min.js"></script>
   <script src="/node_modules/@logimaxx/kviews/dist/kviews.min.js"></script>
   <script src="/dist/kgrid.js"></script>
+  <script src="/integrations/kgrid-plugin-demo-select.js"></script>
   <script>
     if (typeof window.KGrid === "undefined") {
       document.getElementById("demo-status").textContent =

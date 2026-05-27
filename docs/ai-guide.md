@@ -22,7 +22,7 @@ Human-readable references: [README](../README.md), [configuration.md](configurat
 | jQuery `>= 3.7.0` | Peer dependency |
 | `@logimaxx/kviews` | Peer; must expose `createCollectionInstance` |
 | `styles/table.css` | **Required** — view/edit modes, row-actions column collapse, cell visibility |
-| Load order | jQuery → KViews → (optional Select2/autosuggest) → `kgrid.js` → `KGrid.configure()` → `KGrid.init()` |
+| Load order | jQuery → KViews → `kgrid.js` → (optional `kgrid-widgets.js`) → `configure({ customInputTypes })` → `init()` |
 | Bootstrap + Font Awesome | Recommended (default template uses `btn-*`, `fa-sort-*`) |
 
 Without `table.css`, row-actions width, view/edit toggling, and inline edit display break.
@@ -45,8 +45,7 @@ KGrid.configure({
   deleteConfirm: function (ctx, ok, cancel) {
     if (confirm("Delete?")) ok(); else if (cancel) cancel();
   },
-  // select2: fn — only if columns use type "select2"
-  // autosuggest: fn — only if columns use type "autosuggest"
+  // customInputTypes: { select2: KGrid.select2(fn), autosuggest: KGrid.autosuggest(fn) }
 });
 
 const grid = await KGrid.init(document.getElementById("grid-host"), {
@@ -84,9 +83,7 @@ const grid = await KGrid.init(document.getElementById("grid-host"), {
 | `deleteConfirm(context, onConfirm, onCancel)` | Row delete UI (preferred over hardcoded messages) |
 | `confirm(message, onConfirm, onCancel)` | Generic dialogs; default delete flow uses this if `deleteConfirm` unset |
 | `serializeForm(form, columns?)` | Non-flat APIs, checkbox coercion, etc. |
-| `select2($input, options)` | Required for `type: "select2"` columns |
-| `autosuggest($input, options)` | Required for `type: "autosuggest"` columns |
-| `fieldTypes` | Custom plugins via `registerFieldType` |
+| `customInputTypes` | Map of type name → plugin (`KGrid.select2(fn)`, `KGrid.inputType(…)`, or `{ create, … }`) |
 
 Per-table override: pass `deleteConfirm` in `init(host, { deleteConfirm, ... })`.
 
@@ -145,7 +142,7 @@ Each column in `columns: []` is deep-merged with `KGrid.protoColumnConfig`:
 
 **Event callbacks:** string names resolve from `handlers: { onSkuClick: fn }` or `functions` on table options. Insert/update **must** resolve to functions or `init` throws. Display events: missing handler leaves string (runtime error on click).
 
-**Pluggable types:** `select2`, `autosuggest`, `multi_select`, `date_range`, or `KGrid.registerFieldType(name, { create, mount?, validate?, bindFilterSubmit? })`.
+**Pluggable types:** `multi_select`, `date_range` (built-in); any name in `customInputTypes`; or `KGrid.registerFieldType(name, { create, mount?, validate?, bindFilterSubmit? })`.
 
 Validate types: `KGrid.isValidInputType(type)`, `KGrid.isValidFilterType(type)`.
 
@@ -219,13 +216,13 @@ Deprecated: `setEditMode`, `toggleEditMode` — use `setInteraction`.
 ## Mistakes to avoid (AI checklist)
 
 1. **Omitting `table.css`** — broken layout and interaction modes.
-2. **Initializing before `configure`** — select2/autosuggest/deleteConfirm missing.
+2. **Initializing before `configure`** — `customInputTypes` / deleteConfirm not set when needed.
 3. **No KViews** — `init` throws `KVIEWS_MISSING_MSG`; set `configure({ kviews })` or `window.KViews`.
 4. **Both `url` and `data` missing** — `init` throws.
 5. **Column with `features.filter` but no `name`** — throws at setup.
 6. **Mismatched action column** — different conditions for header vs body (always use `hasActionColumn`).
 7. **Expecting action buttons in view mode** — row-actions column is collapsed; switch to edit or use `defaultInteraction: "edit"`.
-8. **select2/autosuggest columns without configure hooks** — throws at field mount.
+8. **Column `type` not in `customInputTypes`** — field type not registered; mount/create fails or falls back to native handling.
 9. **Display event handler string without `handlers` map** — fails at runtime on click.
 10. **Editing `dist/kgrid.js` in node_modules** — change `src/` in the package or fork; rebuild with `npm run build`.
 11. **Assuming cancel edit reloads local `data`** — cancel button calls `loadFromRemote()`; local-only grids need a custom approach.

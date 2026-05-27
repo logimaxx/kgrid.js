@@ -41,7 +41,8 @@ describe("constants", () => {
 
     it("lists valid input and filter types", () => {
         expect(KGrid.VALID_INPUT_TYPES).toContain("text");
-        expect(KGrid.VALID_INPUT_TYPES).toContain("select2");
         expect(KGrid.VALID_FILTER_TYPES).toContain("date");
+        expect(KGrid.isPluggableFieldType("select2")).toBe(true);
+        expect(KGrid.isPluggableFieldType("autosuggest")).toBe(true);
     });
 });

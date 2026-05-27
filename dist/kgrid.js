@@ -1,4 +1,4 @@
-/*! @logimaxx/kgrid | (c) Logimaxx System SRL — proprietary | https://logimaxx.ro | built 2026-05-26T13:21:12.178Z */
+/*! @logimaxx/kgrid | (c) Logimaxx System SRL — proprietary | https://logimaxx.ro | built 2026-05-27T11:38:13.774Z */
 
 /* --- configure.js --- */
 /**
@@ -34,12 +34,14 @@
             }
             return out;
         },
-        select2: null,
-        /** @type {Record<string, object>|null} Extra field type plugins */
+        /** @type {Record<string, Function|object>|null} name → wrapper fn or field type plugin */
+        customInputTypes: null,
+        /** @deprecated use customInputTypes */
         fieldTypes: null,
         /** @type {typeof globalThis.KViews|null} Set via configure or use window.KViews */
         kviews: null,
-        autosuggest: null,
+        /** Default delay (ms) before filter submit; 0 = immediate. Applies to the resolved filter-submit event. */
+        filterDebounceMs: 300,
     };
 
     CT._config = Object.assign({}, defaultConfig);
@@ -51,20 +53,17 @@
      * @param {Function} [overrides.confirm] (message, onConfirm, onCancel?)
      * @param {Function} [overrides.deleteConfirm] (context, onConfirm, onCancel?) — row delete UX
      * @param {Function} [overrides.serializeForm] (form, columns?)
-     * @param {Function} [overrides.select2] ($input, options)
-     * @param {Function} [overrides.autosuggest] ($input, options)
+     * @param {Object} [overrides.customInputTypes] map of name → wrapper fn or field type plugin
+     * @param {Object} [overrides.fieldTypes] deprecated alias of customInputTypes
      * @param {Object} [overrides.kviews] KViews module (createCollectionInstance)
-     * @param {Object} [overrides.fieldTypes] map of name → field type plugin
+     * @param {number} [overrides.filterDebounceMs] default filter submit debounce (ms); 0 = off
      */
     CT.configure = function (overrides) {
         if (overrides && typeof overrides === "object") {
             Object.assign(CT._config, overrides);
-            if (overrides.fieldTypes) {
-                CT._registerConfiguredFieldTypes();
-            }
         }
-        if (typeof CT._syncIntegrationFieldTypes === "function") {
-            CT._syncIntegrationFieldTypes();
+        if (typeof CT._syncCustomInputTypes === "function") {
+            CT._syncCustomInputTypes();
         }
         return CT;
     };
@@ -108,20 +107,6 @@
 
     CT.serializeForm = function (form, columns) {
         return CT._config.serializeForm(form, columns);
-    };
-
-    CT.wrapSelect2 = function ($input, options) {
-        if (typeof CT._config.select2 !== "function") {
-            throw new Error("KGrid.configure({ select2: fn }) is required for select2 columns");
-        }
-        return CT._config.select2($input, options);
-    };
-
-    CT.autosuggest = function ($input, options) {
-        if (typeof CT._config.autosuggest !== "function") {
-            throw new Error("KGrid.configure({ autosuggest: fn }) is required for autosuggest columns");
-        }
-        return CT._config.autosuggest($input, options);
     };
 
     /**
@@ -233,16 +218,18 @@
             operator: "~=~",
             default: null,
             placeholder: "",
-            options: null
+            options: null,
+            /** Override KGrid.configure({ filterDebounceMs }); 0 = submit immediately */
+            debounceMs: null,
         }
     };
 
     CT.VALID_NATIVE_INPUT_TYPES = ["displayonly","text","textarea","number","date","datetime","time","checkbox","radio","file","password","email","url","search","tel","select","hidden"];
     /** @deprecated use VALID_NATIVE_INPUT_TYPES or isValidInputType() */
-    CT.VALID_INPUT_TYPES = CT.VALID_NATIVE_INPUT_TYPES.concat(["select2","autosuggest"]);
+    CT.VALID_INPUT_TYPES = CT.VALID_NATIVE_INPUT_TYPES.slice();
     CT.VALID_NATIVE_FILTER_TYPES = CT.VALID_NATIVE_INPUT_TYPES.filter((t) => t !== "displayonly");
     /** @deprecated use isValidFilterType() */
-    CT.VALID_FILTER_TYPES = CT.VALID_NATIVE_FILTER_TYPES.concat(["select2","autosuggest","multi_select","date_range"]);
+    CT.VALID_FILTER_TYPES = CT.VALID_NATIVE_FILTER_TYPES.concat(["multi_select","date_range"]);
 
     CT.isValidInputType = function (type) {
         return CT.VALID_NATIVE_INPUT_TYPES.includes(type) || CT.isPluggableFieldType(type);
@@ -534,17 +521,19 @@
 /**
  * Pluggable field types for filter / insert / update contexts.
  *
- * Register: KGrid.registerFieldType(name, plugin)
- * Or:      KGrid.configure({ fieldTypes: { myType: { ... } } })
+ *   KGrid.configure({ customInputTypes: { myType: { create, mount?, … } } })
+ *   KGrid.registerFieldType(name, plugin)
+ *   KGrid.inputType(mount, { element })  — simple widget helper
  *
  * Plugin shape:
- *   validate?(config, mode, col) — throw on invalid config
- *   create({ mode, col, config }) — { $input: jQuery, skipValueAttr?: boolean }
- *   mount?({ mode, $input, col, config, item?, view?, formEl?, rowEl? })
- *   bindFilterSubmit?($input, onSubmit) — extra events besides input/change (filter only)
+ *   create({ mode, col, config }) — required; returns { $input, skipValueAttr?, filterEvents? }
+ *   filterEvents? — jQuery event names for filter submit (e.g. "change", "input"); false = none (use bindFilterSubmit)
+ *   filterDebounceMs? — override configure/filter.debounceMs for this type
+ *   mount?, validate?, bindFilterSubmit? — extra widget-specific filter events
  */
 (function (CT) {
     CT._fieldTypes = Object.create(null);
+    CT._configuredCustomInputTypeNames = [];
 
     CT.registerFieldType = function (name, plugin, options) {
         if (!name || typeof name !== "string") {
@@ -557,6 +546,13 @@
             throw new Error("Field type already registered: " + name);
         }
         CT._fieldTypes[name] = Object.assign({ name }, plugin);
+        return CT;
+    };
+
+    CT.unregisterFieldType = function (name) {
+        if (name && CT._fieldTypes[name]) {
+            delete CT._fieldTypes[name];
+        }
         return CT;
     };
 
@@ -594,6 +590,75 @@
         plugin.mount(opts);
     };
 
+    /**
+     * Which DOM events on a filter control should submit the hidden filter form.
+     * Priority: create() return filterEvents → plugin.filterEvents → default ("change" for select, else "input").
+     * @returns {string|null} jQuery event string, or null to skip (bindFilterSubmit only)
+     */
+    CT.resolveFilterEvents = function ({ plugin, $input, createResult }) {
+        let events;
+        if (createResult && Object.prototype.hasOwnProperty.call(createResult, "filterEvents")) {
+            events = createResult.filterEvents;
+        } else if (plugin && Object.prototype.hasOwnProperty.call(plugin, "filterEvents")) {
+            events = plugin.filterEvents;
+        }
+        if (events === false || events === null) {
+            return null;
+        }
+        if (typeof events === "string" && events.trim()) {
+            return events.trim();
+        }
+        return $input.is("select") ? "change" : "input";
+    };
+
+    CT.normalizeFilterDebounceMs = function (value, fallback) {
+        if (value === false) {
+            return 0;
+        }
+        if (value === undefined) {
+            return fallback;
+        }
+        if (value === null) {
+            return fallback;
+        }
+        const n = Number(value);
+        if (!Number.isFinite(n) || n < 0) {
+            return 0;
+        }
+        return n;
+    };
+
+    /**
+     * Resolve debounce delay: column filter.debounceMs → plugin.filterDebounceMs → configure.filterDebounceMs.
+     */
+    CT.resolveFilterDebounceMs = function ({ filterConfig, plugin }) {
+        if (filterConfig && Object.prototype.hasOwnProperty.call(filterConfig, "debounceMs")) {
+            // Note: protoColumnConfig.filter.debounceMs defaults to `null`.
+            // Treat `null` as "not specified" so we can still fall back to plugin/global.
+            if (filterConfig.debounceMs !== null) {
+                return CT.normalizeFilterDebounceMs(filterConfig.debounceMs, 0);
+            }
+        }
+        if (plugin && Object.prototype.hasOwnProperty.call(plugin, "filterDebounceMs")) {
+            // Same semantics as column debounceMs: null means "unset".
+            if (plugin.filterDebounceMs !== null) {
+                return CT.normalizeFilterDebounceMs(plugin.filterDebounceMs, 0);
+            }
+        }
+        return CT.normalizeFilterDebounceMs(CT._config.filterDebounceMs, 0);
+    };
+
+    /** Debounce filter submit events when debounceMs > 0. */
+    CT.shouldDebounceFilterSubmit = function (events, debounceMs) {
+        if (!debounceMs || debounceMs <= 0) {
+            return false;
+        }
+        if (!events) {
+            return false;
+        }
+        return true;
+    };
+
     CT.bindFieldFilterSubmit = function (type, $input, onSubmit) {
         const plugin = CT.getFieldType(type);
         if (plugin && typeof plugin.bindFilterSubmit === "function") {
@@ -601,67 +666,84 @@
         }
     };
 
+    CT.bindFilterInputEvents = function ({ type, $input, onSubmit, createResult, filterConfig }) {
+        const plugin = type ? CT.getFieldType(type) : null;
+        const events = CT.resolveFilterEvents({ plugin, $input, createResult });
+        const debounceMs = CT.resolveFilterDebounceMs({ filterConfig, plugin });
+        const handler = CT.wrapFilterSubmitHandler($input, onSubmit, events, debounceMs);
+        if (events) {
+            $input.on(events, handler);
+        }
+        CT.bindFieldFilterSubmit(type, $input, handler);
+    };
+
     CT.isPluggableFieldType = function (type) {
         return !!CT.getFieldType(type);
     };
 
-    CT._registerConfiguredFieldTypes = function () {
-        const types = CT._config.fieldTypes;
-        if (!types || typeof types !== "object") {
-            return;
+    /**
+     * Simple custom type: fixed HTML element + your mount() to init a widget.
+     * @param {( $input: JQuery, options: object, ctx: object) => void} mount
+     * @param {{ element: string, formInputClass?: string, skipValueAttr?: boolean, filterEvents?, filterDebounceMs?, validate?, bindFilterSubmit? }} opts
+     */
+    CT.inputType = function (mount, opts) {
+        if (typeof mount !== "function") {
+            throw new TypeError("inputType(mount, opts): mount must be a function");
         }
-        Object.keys(types).forEach((name) => {
-            CT.registerFieldType(name, types[name], { overwrite: true });
+        if (!opts || typeof opts.element !== "string") {
+            throw new TypeError("inputType(mount, opts): opts.element is required (HTML string)");
+        }
+        return {
+            filterEvents: opts.filterEvents,
+            filterDebounceMs: opts.filterDebounceMs,
+            validate: opts.validate,
+            create({ mode }) {
+                const $input = $(opts.element);
+                if (opts.formInputClass && (mode === "insert" || mode === "update")) {
+                    $input.addClass(opts.formInputClass);
+                }
+                return { $input, skipValueAttr: !!opts.skipValueAttr };
+            },
+            mount(ctx) {
+                mount(ctx.$input, ctx.config?.options ?? ctx.config, ctx);
+            },
+            bindFilterSubmit: opts.bindFilterSubmit,
+        };
+    };
+
+    CT._getCustomInputTypesConfig = function () {
+        return CT._config.customInputTypes ?? CT._config.fieldTypes ?? null;
+    };
+
+    CT._syncCustomInputTypes = function () {
+        const types = CT._getCustomInputTypesConfig();
+        const activeNames =
+            types && typeof types === "object"
+                ? Object.keys(types).filter((name) => types[name] != null)
+                : [];
+
+        CT._configuredCustomInputTypeNames.forEach((name) => {
+            if (!activeNames.includes(name)) {
+                CT.unregisterFieldType(name);
+            }
         });
-    };
-})(window.KGrid);
 
+        activeNames.forEach((name) => {
+            const spec = types[name];
+            if (!spec || typeof spec !== "object" || typeof spec.create !== "function") {
+                if (typeof spec === "function") {
+                    throw new Error(
+                        "customInputTypes." +
+                            name +
+                            " is a function — use a plugin, e.g. KGrid.select2(fn) or KGrid.inputType(fn, { element: \"...\" })"
+                    );
+                }
+                throw new TypeError("customInputTypes." + name + " must be a plugin with create()");
+            }
+            CT.registerFieldType(name, spec, { overwrite: true });
+        });
 
-/* --- select2.js --- */
-(function (CT) {
-    /** select2wrapper options: AJAX config + default from <option> or config default spec. */
-    CT.select2OptionsWithDefault = function ($select, optionsConfig, defaultSpec) {
-        const opts = { ...(optionsConfig || {}) };
-        const $sel = $select.find("option:selected");
-        if ($sel.length && String($sel.val() ?? "") !== "") {
-            opts.default = { value: $sel.val(), label: $sel.text() };
-        } else if (defaultSpec && typeof defaultSpec === "object" && defaultSpec.value != null) {
-            opts.default = defaultSpec;
-        } else if (defaultSpec != null && defaultSpec !== "" && typeof defaultSpec !== "object") {
-            opts.default = { value: String(defaultSpec), label: String(defaultSpec) };
-        }
-        return opts;
-    };
-
-    CT.assertSelect2Options = function (options, context) {
-        if (!options?.url || !options?.idFld || !options?.labelFld) {
-            throw new Error("Invalid select2 config (" + context + "): " + JSON.stringify(options, null, 2));
-        }
-    };
-
-    CT.initSelect2OnField = function ($input, wrapperOptions, context) {
-        CT.assertSelect2Options(wrapperOptions, context);
-        const $inp = $($input);
-        if ($inp.data("select2")) {
-            $inp.select2("destroy");
-        }
-        CT.wrapSelect2($inp, wrapperOptions);
-    };
-
-    CT.select2OptionsForUpdate = function ($select, updateConfig) {
-        return CT.select2OptionsWithDefault($select, updateConfig.options, updateConfig.value);
-    };
-
-    CT.initUpdateSelect2 = function ($input, updateConfig) {
-        CT.initSelect2OnField($input, CT.select2OptionsForUpdate($($input), updateConfig), "update");
-    };
-
-    CT.select2OptionsForFilter = function ($select, filter) {
-        return CT.select2OptionsWithDefault($select, filter.options, filter.default);
-    };
-
-    CT.initFilterSelect2 = function ($input, filter) {
-        CT.initSelect2OnField($input, CT.select2OptionsForFilter($($input), filter), "filter");
+        CT._configuredCustomInputTypeNames = activeNames.slice();
     };
 })(window.KGrid);
 
@@ -691,103 +773,6 @@
             return { $input };
         },
     });
-})(window.KGrid);
-
-
-/* --- field-types-integrations.js --- */
-/**
- * Field types that delegate to host-configured wrappers (Select2, autosuggest, …).
- * Registered only when KGrid.configure({ select2 }) / configure({ autosuggest }) supplies a function.
- */
-(function (CT) {
-    function assertRemoteOptions(options, typeName, mode) {
-        if (!options?.url || !options?.idFld || !options?.labelFld) {
-            throw new Error(
-                "Invalid " + typeName + " config (" + mode + "): " + JSON.stringify(options, null, 2)
-            );
-        }
-    }
-
-    const select2Plugin = {
-        validate(config, mode) {
-            if (mode === "filter") {
-                return;
-            }
-            assertRemoteOptions(config.options, "select2", mode);
-        },
-        create({ mode, config }) {
-            const cls =
-                mode === "filter"
-                    ? "form-select form-select-sm select2"
-                    : "form-input form-select form-select-sm select2";
-            const $input = $("<select>").addClass(cls);
-            const defaultSpec =
-                mode === "filter"
-                    ? config.default
-                    : config.value ?? config.default;
-            if (defaultSpec && typeof defaultSpec === "object" && defaultSpec.value != null) {
-                $("<option>")
-                    .text(defaultSpec.label ?? defaultSpec.value)
-                    .attr("value", defaultSpec.value)
-                    .appendTo($input);
-            }
-            return { $input, skipValueAttr: true };
-        },
-        mount({ mode, $input, config, col }) {
-            if (mode === "filter") {
-                CT.initFilterSelect2($input, config);
-                return;
-            }
-            if (mode === "insert") {
-                CT.wrapSelect2($input, {
-                    ...config.options,
-                    default: col?.insert?.default ?? config.default,
-                });
-                return;
-            }
-            if (mode === "update") {
-                CT.initUpdateSelect2($input[0], { options: config.options, value: config.value });
-            }
-        },
-        bindFilterSubmit($input, onSubmit) {
-            $input.on("select2:select select2:clear", onSubmit);
-        },
-    };
-
-    const autosuggestPlugin = {
-        validate(config, mode) {
-            if (mode === "filter") {
-                return;
-            }
-            assertRemoteOptions(config.options, "autosuggest", mode);
-        },
-        create({ mode }) {
-            const $input = $(
-                "<input autocomplete='off' type='text' class='form-control form-control-sm'/>"
-            );
-            if (mode === "insert" || mode === "update") {
-                $input.addClass("form-input");
-            }
-            return { $input };
-        },
-        mount({ $input, config }) {
-            CT.autosuggest($input, config.options ?? config);
-        },
-    };
-
-    CT._syncIntegrationFieldTypes = function () {
-        const integrations = [
-            { name: "select2", hook: CT._config.select2, plugin: select2Plugin },
-            { name: "autosuggest", hook: CT._config.autosuggest, plugin: autosuggestPlugin },
-        ];
-        integrations.forEach(({ name, hook, plugin }) => {
-            if (typeof hook === "function") {
-                CT.registerFieldType(name, plugin, { overwrite: true });
-            } else if (CT._fieldTypes[name]) {
-                delete CT._fieldTypes[name];
-            }
-        });
-    };
 })(window.KGrid);
 
 
@@ -886,6 +871,74 @@
 
 /* --- filters.js --- */
 (function (CT) {
+    const FILTER_DEBOUNCE_TIMER_KEY = "kgridFilterDebounceTimer";
+
+    /**
+     * Cancel a pending debounced filter submit on one control.
+     * @param {JQuery} $input
+     */
+    CT.cancelFilterSubmit = function ($input) {
+        const timer = $input.data(FILTER_DEBOUNCE_TIMER_KEY);
+        if (timer) {
+            clearTimeout(timer);
+            $input.removeData(FILTER_DEBOUNCE_TIMER_KEY);
+        }
+    };
+
+    /**
+     * Cancel debounced submits for all fields associated with a filter form.
+     * @param {HTMLFormElement|JQuery} form
+     */
+    CT.cancelFilterDebounces = function (form) {
+        const formId = $(form).attr("id");
+        if (!formId) {
+            return;
+        }
+        $(document).find("[form='" + formId + "']").each(function () {
+            CT.cancelFilterSubmit($(this));
+        });
+    };
+
+    /**
+     * Run a pending debounced submit immediately, if any.
+     * @param {JQuery} $input
+     */
+    CT.flushFilterSubmit = function ($input) {
+        const timer = $input.data(FILTER_DEBOUNCE_TIMER_KEY);
+        if (!timer) {
+            return;
+        }
+        clearTimeout(timer);
+        $input.removeData(FILTER_DEBOUNCE_TIMER_KEY);
+        const form = $input[0] && $input[0].form;
+        if (form) {
+            $(form).trigger("submit");
+        }
+    };
+
+    /**
+     * Optionally debounce filter submit (see resolveFilterDebounceMs / shouldDebounceFilterSubmit).
+     * @param {JQuery} $input
+     * @param {Function} onSubmit bound with control as `this`
+     * @param {string|null} events resolved filter events
+     * @param {number} debounceMs
+     * @returns {Function}
+     */
+    CT.wrapFilterSubmitHandler = function ($input, onSubmit, events, debounceMs) {
+        if (!CT.shouldDebounceFilterSubmit(events, debounceMs)) {
+            return onSubmit;
+        }
+        const delay = debounceMs;
+        return function filterSubmitDebounced() {
+            CT.cancelFilterSubmit($input);
+            const timer = setTimeout(function () {
+                $input.removeData(FILTER_DEBOUNCE_TIMER_KEY);
+                onSubmit.call(this);
+            }.bind(this), delay);
+            $input.data(FILTER_DEBOUNCE_TIMER_KEY, timer);
+        };
+    };
+
     /**
      * Setup filtering row.
      * Filter inputs live in <th> cells; they cannot sit inside one <form> in a <tr>.
@@ -926,8 +979,10 @@
 
             let filter = col.filter;
             let input;
+            let pluggableResult = null;
             const pluggable = CT.createFieldInput({ mode: "filter", col, config: filter });
             if (pluggable) {
+                pluggableResult = pluggable;
                 input = pluggable.$input;
                 input.appendTo(filterCell);
                 CT.mountField({ mode: "filter", $input: input, col, config: filter });
@@ -947,7 +1002,7 @@
                             });
                         }
                         else {
-                            throw new Error("Column must have an filter.options array when column.filter.type is select: \n"+JSON.stringify(col,null,2));
+                            throw new Error("Column must have a filter.options array when column.filter.type is select: \n"+JSON.stringify(col,null,2));
                         }
                         input.appendTo(filterCell);
                         break;
@@ -969,8 +1024,13 @@
                     $(form).trigger("submit");
                 }
             };
-            input.on("input change", submitFilterForm);
-            CT.bindFieldFilterSubmit(filter.type, input, submitFilterForm);
+            CT.bindFilterInputEvents({
+                type: filter.type,
+                $input: input,
+                onSubmit: submitFilterForm,
+                createResult: pluggableResult,
+                filterConfig: filter,
+            });
         });
 
 
@@ -990,6 +1050,7 @@
             if(!this.form) return this;
             const $field = CT.filterFormField(this.form, name);
             if(!$field.length) return this;
+            CT.flushFilterSubmit($field);
             $field.val(value);
             const oldOperator = $field.attr("data-operator");
             $field.attr("data-operator", operator);
@@ -999,6 +1060,7 @@
         };
         this.reset = () => {
             if (this.form) {
+                CT.cancelFilterDebounces(this.form);
                 this.form.reset();
             }
             return this;

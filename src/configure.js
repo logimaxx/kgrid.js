@@ -31,12 +31,14 @@
             }
             return out;
         },
-        select2: null,
-        /** @type {Record<string, object>|null} Extra field type plugins */
+        /** @type {Record<string, Function|object>|null} name → wrapper fn or field type plugin */
+        customInputTypes: null,
+        /** @deprecated use customInputTypes */
         fieldTypes: null,
         /** @type {typeof globalThis.KViews|null} Set via configure or use window.KViews */
         kviews: null,
-        autosuggest: null,
+        /** Default delay (ms) before filter submit; 0 = immediate. Applies to the resolved filter-submit event. */
+        filterDebounceMs: 300,
     };
 
     CT._config = Object.assign({}, defaultConfig);
@@ -48,20 +50,17 @@
      * @param {Function} [overrides.confirm] (message, onConfirm, onCancel?)
      * @param {Function} [overrides.deleteConfirm] (context, onConfirm, onCancel?) — row delete UX
      * @param {Function} [overrides.serializeForm] (form, columns?)
-     * @param {Function} [overrides.select2] ($input, options)
-     * @param {Function} [overrides.autosuggest] ($input, options)
+     * @param {Object} [overrides.customInputTypes] map of name → wrapper fn or field type plugin
+     * @param {Object} [overrides.fieldTypes] deprecated alias of customInputTypes
      * @param {Object} [overrides.kviews] KViews module (createCollectionInstance)
-     * @param {Object} [overrides.fieldTypes] map of name → field type plugin
+     * @param {number} [overrides.filterDebounceMs] default filter submit debounce (ms); 0 = off
      */
     CT.configure = function (overrides) {
         if (overrides && typeof overrides === "object") {
             Object.assign(CT._config, overrides);
-            if (overrides.fieldTypes) {
-                CT._registerConfiguredFieldTypes();
-            }
         }
-        if (typeof CT._syncIntegrationFieldTypes === "function") {
-            CT._syncIntegrationFieldTypes();
+        if (typeof CT._syncCustomInputTypes === "function") {
+            CT._syncCustomInputTypes();
         }
         return CT;
     };
@@ -105,20 +104,6 @@
 
     CT.serializeForm = function (form, columns) {
         return CT._config.serializeForm(form, columns);
-    };
-
-    CT.wrapSelect2 = function ($input, options) {
-        if (typeof CT._config.select2 !== "function") {
-            throw new Error("KGrid.configure({ select2: fn }) is required for select2 columns");
-        }
-        return CT._config.select2($input, options);
-    };
-
-    CT.autosuggest = function ($input, options) {
-        if (typeof CT._config.autosuggest !== "function") {
-            throw new Error("KGrid.configure({ autosuggest: fn }) is required for autosuggest columns");
-        }
-        return CT._config.autosuggest($input, options);
     };
 
     /**

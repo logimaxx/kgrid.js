@@ -1,34 +1,36 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-describe("select2 helpers", () => {
+describe("select2 widget", () => {
     it("select2OptionsWithDefault uses selected option", () => {
-        const $select = $(`
-<select>
-  <option value="a">Alpha</option>
-  <option value="b" selected>Beta</option>
-</select>`);
-        const opts = KGrid.select2OptionsWithDefault($select, { url: "/api" });
+        const $select = $("<select><option value='a'>A</option></select>");
+        $select.find("option").prop("selected", true);
+        const opts = KGrid.select2.helpers.select2OptionsWithDefault($select, { url: "/api" });
+        expect(opts.default).toEqual({ value: "a", label: "A" });
         expect(opts.url).toBe("/api");
-        expect(opts.default).toEqual({ value: "b", label: "Beta" });
-    });
-
-    it("select2OptionsWithDefault uses object default spec", () => {
-        const $select = $("<select></select>");
-        const opts = KGrid.select2OptionsWithDefault($select, {}, { value: "x", label: "X" });
-        expect(opts.default).toEqual({ value: "x", label: "X" });
     });
 
     it("assertSelect2Options throws when config incomplete", () => {
-        expect(() => KGrid.assertSelect2Options({}, "test")).toThrow(/Invalid select2/);
+        expect(() => KGrid.select2.helpers.assertSelect2Options({}, "test")).toThrow(/Invalid select2/);
     });
 
-    it("assertSelect2Options passes with url, idFld, labelFld", () => {
-        expect(() =>
-            KGrid.assertSelect2Options({
-                url: "/u",
-                idFld: "id",
-                labelFld: "name",
-            }, "test")
-        ).not.toThrow();
+    it("mount calls the host wrapper", () => {
+        const wrapper = vi.fn();
+        KGrid.configure({
+            customInputTypes: {
+                select2: KGrid.select2(wrapper),
+                autosuggest: null,
+            },
+        });
+        const $input = $("<select>");
+        KGrid.getFieldType("select2").mount({
+            mode: "insert",
+            $input,
+            config: {
+                type: "select2",
+                options: { url: "/x", idFld: "id", labelFld: "name" },
+            },
+            col: {},
+        });
+        expect(wrapper).toHaveBeenCalled();
     });
 });

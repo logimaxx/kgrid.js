@@ -42,7 +42,7 @@ The page uses an empty `#kgrid-host`; KGrid builds the table from its internal H
 - **Switch to edit mode** — `kgridDemo.toggleEditMode()`; inline edit + save per row
 - **Insert row** — top of table (create); server returns new `id`
 - **Delete** — per-row trash in edit mode
-- Native `select` columns (no Handlebars helpers in controls)
+- **Category** column uses custom type `demo_select` — a native `<select>` wrapped as a plugin ([`integrations/kgrid-plugin-demo-select.js`](../integrations/kgrid-plugin-demo-select.js)); **Active** still uses built-in `select`
 
 ## Debug
 

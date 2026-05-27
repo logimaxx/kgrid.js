@@ -13,7 +13,7 @@ Global entry point: `window.KGrid`
 | [jQuery](https://jquery.com/) | Yes | `>= 3.7.0` |
 | [@logimaxx/kviews](https://github.com/logimaxx/kviews.js) | Yes | JSON:API collections, Handlebars templates |
 | Handlebars | Yes (via KViews) | Display templates — use simple `{{field}}` syntax |
-| Select2 / autosuggest | Optional | Only when columns use those types (via `KGrid.configure`) |
+| Custom input types | Optional | `configure({ customInputTypes })` + optional `integrations/kgrid-widgets.js` |
 
 ## Installation
 
@@ -69,8 +69,7 @@ KGrid.configure({
   },
   // Optional: ES module apps
   // kviews: KViews,
-  select2: function ($input, opts) { /* ... */ },
-  autosuggest: function ($input, opts) { $input.autosuggest(opts); },
+  // customInputTypes: { select2: KGrid.select2(fn), … } — see docs/integration.md
 });
 ```
 
@@ -95,14 +94,14 @@ const grid = await KGrid.init(document.getElementById("table-host"), {
 | [Configuration reference](docs/configuration.md) | Table options, columns, filters, features |
 | [API reference](docs/api.md) | `KGrid` methods and grid instance API |
 | [Integration guide](docs/integration.md) | `configure()`, KViews, plugins |
-| [Field types](docs/field-types.md) | Native, built-in, select2/autosuggest, custom plugins |
+| [Field types](docs/field-types.md) | Native, built-in, plugins (select2, autosuggest, custom) |
 | [Table shell template](docs/table-shell.md) | HTML template, placeholders, custom markup |
 
 ## API overview
 
 | Symbol | Description |
 |--------|-------------|
-| `KGrid.configure(opts)` | Host hooks (`deleteConfirm`, `kviews`, `select2`, …) |
+| `KGrid.configure(opts)` | Host hooks (`deleteConfirm`, `kviews`, `customInputTypes`, …) |
 | `KGrid.init(host, opts)` | Empty host or existing `<table>`; returns grid API |
 | `KGrid.TABLE_SHELL_TEMPLATE` | Default table HTML (editable) |
 | `KGrid.hasActionColumn(opts)` | Whether a trailing row-actions column is rendered |

@@ -16,9 +16,7 @@ const SRC_ORDER = [
     "dom.js",
     "table-shell.js",
     "field-types.js",
-    "select2.js",
     "field-types-builtins.js",
-    "field-types-integrations.js",
     "interaction.js",
     "labels.js",
     "filters.js",
@@ -49,6 +47,8 @@ function loadKGridSource() {
         TypeError,
         JSON,
         FormData,
+        setTimeout: (...args) => globalThis.setTimeout(...args),
+        clearTimeout: (id) => globalThis.clearTimeout(id),
     };
     globalThis.$ = globalThis.jQuery = jquery;
     context.window.$ = context.window.jQuery = jquery;
@@ -57,8 +57,28 @@ function loadKGridSource() {
     return context.window.KGrid;
 }
 
+function loadWidgets() {
+    const body = fs.readFileSync(path.join(root, "integrations/kgrid-widgets.js"), "utf8");
+    vm.runInNewContext(body, {
+        window: globalThis,
+        document: globalThis.document,
+        $: globalThis.$,
+        jQuery: globalThis.jQuery,
+        console,
+        Math,
+        Object,
+        Array,
+        Error,
+        TypeError,
+        JSON,
+        setTimeout: (...args) => globalThis.setTimeout(...args),
+        clearTimeout: (id) => globalThis.clearTimeout(id),
+    });
+}
+
 globalThis.$ = globalThis.jQuery = jquery;
 globalThis.KGrid = loadKGridSource();
+loadWidgets();
 
 beforeEach(() => {
     KGrid.configure({
@@ -84,12 +104,15 @@ beforeEach(() => {
             }
             return out;
         },
-        select2($input) {
-            $input.data("select2-mock", true);
-        },
-        autosuggest($input) {
-            $input.data("autosuggest-mock", true);
-        },
         kviews: null,
+        filterDebounceMs: 300,
+        customInputTypes: {
+            select2: KGrid.select2(function ($input) {
+                $input.data("select2-mock", true);
+            }),
+            autosuggest: KGrid.autosuggest(function ($input) {
+                $input.data("autosuggest-mock", true);
+            }),
+        },
     });
 });
