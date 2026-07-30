@@ -89,7 +89,7 @@
 
     CT.setupPagingFooter = function (footer, options, noVisibleCols) {
         CT.log("setupPagingFooter",footer,options,noVisibleCols);
-        if(options.pagingFooterAttrs && options.pagingFooterAttrs.constructor===Object) {
+        if(options.pagingFooterAttrs && CT.isPlainObject(options.pagingFooterAttrs)) {
             Object.keys(options.pagingFooterAttrs).forEach(att => footer.attr(att,options.pagingFooterAttrs[att]));
         }
         CT.log("noVisibleCols",noVisibleCols);

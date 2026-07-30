@@ -192,6 +192,8 @@ CSS on `.custom-table-shell`: `data-interaction="view|edit"`. Optional overrides
 |--------|------|---------|-------------|
 | `insertFormRow.position` | `'top' \| 'bottom'` | `'top'` | New-record row position |
 | `onNewItemCreated` | `function(data)` | — | After successful insert |
+| `onInsertRowReady` | `function(form, row)` | — | After insert row DOM is built |
+| `onRowFields` | `function(item, view, table)` | — | After each data row render / field mount |
 | `deleteConfirm` | `(context, onConfirm, onCancel?) => void` | — | Row delete UX for this table; overrides `KGrid.configure({ deleteConfirm })` |
 
 `deleteConfirm` receives `{ item, view, options }`. Call `onConfirm()` to delete; `onCancel()` to dismiss. See [integration.md](integration.md#deleteconfirm-row-delete).
@@ -242,7 +244,9 @@ Each element of `columns: []`:
 | `name` | `string` | Field name (**required** for sort, filter, create, update on that column) |
 | `label` | `string` | Header text |
 | `hidden` | `boolean` | Hide from UI; may still participate in forms (e.g. `id` as `hidden`) |
+| `class` / `columnClass` | `string` | CSS class on label/filter/data/insert cells; sets `data-name` |
 | `attrs` | `object` | HTML attributes on header/cells |
+| `input` | `object` | Shared defaults for `insert` + `update` (explicit blocks win) |
 | `features` | `object` | `create`, `update`, `filter`, `sort` per column (default all `false`) |
 
 ### Display (`display`)
@@ -283,6 +287,7 @@ Check types with `KGrid.isValidInputType(type)`.
 | `default` | `any` | | Initial value |
 | `placeholder` | `string` | `""` | |
 | `options` | `array` \| `object` | | For `select`, `multi_select`, `select2`, … |
+| `persist` | `boolean` | `false` | Re-apply `default` on filter reset (also implied when column `hidden` or `type: "hidden"`) |
 | `debounceMs` | `number` | `configure({ filterDebounceMs })` | Ms to wait after typing before filter API call; `0` = immediate |
 
 Check types with `KGrid.isValidFilterType(type)`.

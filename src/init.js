@@ -59,9 +59,7 @@
             },
         };
 
-        options.columns = options.columns.map((col) =>
-            CT.setDefaultValues(CT.protoColumnConfig, col)
-        );
+        options.columns = options.columns.map((col) => CT.normalizeColumnConfig(col));
 
         const handlers = options.handlers ?? {};
         delete options.handlers;
@@ -193,6 +191,8 @@
         } else {
             throw new Error("Invalid data: missing datasource url or data for table");
         }
+
+        CT.setupDefaultFilters(filterForm, options, api.instance);
 
         return api;
     };

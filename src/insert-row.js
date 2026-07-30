@@ -4,7 +4,7 @@
      * @returns {jQuery}
      */
     CT.setupNewRecordForm = function (table, options, grid) {
-        if(!options.insertFormRow || options.insertFormRow.constructor!==Object) {
+        if(!options.insertFormRow || !CT.isPlainObject(options.insertFormRow)) {
             table.find(".before-main-tbody").remove();
             table.find(".after-main-tbody").remove();
             return;
@@ -55,13 +55,14 @@
                 return;
             }
             if(!col.features.create){
-                $("<td>").appendTo(newRecordRow).attr("data-label", col.label);
+                const $empty = $("<td>").appendTo(newRecordRow).attr("data-label", col.label);
+                CT.applyColumnCellMeta($empty, col);
                 return;
             }
 
             const insertConfig = col.insert;
-            if(!insertConfig || insertConfig.constructor!==Object) {
-                throw new Error("Column must have an insert config object when column.features.insert is true: \n"+JSON.stringify(col,null,2));
+            if(!insertConfig || !CT.isPlainObject(insertConfig)) {
+                throw new Error("Column must have an insert config object when column.features.create is true: \n"+JSON.stringify(col,null,2));
             }
 
             if(!insertConfig.type) {
@@ -131,7 +132,8 @@
             }
 
             if(insertConfig.type!=="hidden") {
-                $("<td>").append(input).appendTo(newRecordRow).attr("data-label", col.label);
+                const $td = $("<td>").append(input).appendTo(newRecordRow).attr("data-label", col.label);
+                CT.applyColumnCellMeta($td, col);
             }
             CT.mountField({
                 mode: "insert",
@@ -160,6 +162,10 @@
             .attr("form",newRecordFormId)
             .attr("type","submit")
             .appendTo(grp);
+
+        if (typeof options.onInsertRowReady === "function") {
+            options.onInsertRowReady(newRecordForm[0], newRecordRow[0]);
+        }
 
         return newRecordRow;
     };

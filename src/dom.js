@@ -96,4 +96,28 @@
         }
         return $();
     };
+
+    /** Resolved CSS class for a column (`class` or alias `columnClass`). */
+    CT.columnClassName = function (col) {
+        if (!col) {
+            return null;
+        }
+        const cls = col.class != null && col.class !== "" ? col.class : col.columnClass;
+        return cls != null && cls !== "" ? String(cls) : null;
+    };
+
+    /** Add column class + data-name to a header/cell element. */
+    CT.applyColumnCellMeta = function ($el, col) {
+        if (!$el || !$el.length || !col) {
+            return $el;
+        }
+        if (col.name) {
+            $el.attr("data-name", col.name);
+        }
+        const cls = CT.columnClassName(col);
+        if (cls) {
+            $el.addClass(cls);
+        }
+        return $el;
+    };
 })(window.KGrid);

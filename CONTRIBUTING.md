@@ -45,7 +45,22 @@ npm run demo   # http://localhost:5173/demo/
 
 ## Releases
 
-Only maintainers publish versions. Do not run `npm publish` unless explicitly tasked; the package is marked `"private": true` to reduce accidental publication.
+Only maintainers cut versions. The package is `"private": true` — **do not** `npm publish` unless explicitly tasked. Distribution is via GitHub tags / branch installs (`github:logimaxx/kgrid.js#vX.Y.Z`).
+
+```bash
+npm run release          # test + build; reminds you to commit dist/ if dirty
+# commit any remaining source + dist changes, then:
+./version.sh patch       # or minor | major — npm version + git push + --tags
+```
+
+Equivalent manual steps after a clean tree:
+
+```bash
+npm version patch        # or minor | major
+git push && git push --tags
+```
+
+Consumers then pin the tag, e.g. `npm install "github:logimaxx/kgrid.js#v0.2.1"`.
 
 ## Questions
 

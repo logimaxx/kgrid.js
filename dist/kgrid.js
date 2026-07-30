@@ -1,4 +1,4 @@
-/*! @logimaxx/kgrid | (c) Logimaxx System SRL — proprietary | https://logimaxx.ro | built 2026-05-27T11:38:13.774Z */
+/*! @logimaxx/kgrid | (c) Logimaxx System SRL — proprietary | https://logimaxx.ro | built 2026-07-30T15:32:48.241Z */
 
 /* --- configure.js --- */
 /**
@@ -182,6 +182,9 @@
         label: null,
         name: null,
         hidden: false,
+        /** CSS class(es) on header/filter/data/insert cells (alias: columnClass) */
+        class: null,
+        columnClass: null,
         attrs: {},
         features: {
             create: false,
@@ -193,6 +196,11 @@
             template: null,
             events: []
         },
+        /**
+         * Shared insert+update defaults. Explicit insert/update win on conflict.
+         * Example: input: { type: "number", required: true }
+         */
+        input: null,
         insert: {
             type: "text",
             default: null,
@@ -211,6 +219,7 @@
             disabled: false,
             required: false,
             options: null,
+            template: null,
             events: []
         },
         filter: {
@@ -219,6 +228,8 @@
             default: null,
             placeholder: "",
             options: null,
+            /** Keep default across filter form reset / re-submit */
+            persist: false,
             /** Override KGrid.configure({ filterDebounceMs }); 0 = submit immediately */
             debounceMs: null,
         }
@@ -246,16 +257,62 @@
 
 /* --- config.js --- */
 (function (CT) {
+    /** Plain object (not array / null) — realm-safe vs `constructor === Object`. */
+    CT.isPlainObject = function (value) {
+        return value != null && typeof value === "object" && !Array.isArray(value);
+    };
+
     CT.setDefaultValues = function (proto, col) {
-        const newCol = {...proto};
-        Object.keys(col).forEach(key => {
-            if(col[key] && col[key].constructor === Object) {
+        const newCol = { ...(proto || {}) };
+        Object.keys(col || {}).forEach((key) => {
+            if (CT.isPlainObject(col[key]) && CT.isPlainObject(newCol[key])) {
                 newCol[key] = CT.setDefaultValues(newCol[key], col[key]);
+                return;
+            }
+            if (CT.isPlainObject(col[key]) && newCol[key] == null) {
+                newCol[key] = CT.setDefaultValues({}, col[key]);
                 return;
             }
             newCol[key] = col[key];
         });
         return newCol;
+    };
+
+    /**
+     * Normalize a column: expand `input` shorthand, merge proto, ensure events[].
+     * @param {Object} col raw column from table options
+     * @returns {Object}
+     */
+    CT.normalizeColumnConfig = function (col) {
+        let partial = col && typeof col === "object" ? { ...col } : {};
+        if (CT.isPlainObject(partial.input)) {
+            const shared = { ...partial.input };
+            delete partial.input;
+            partial.insert = CT.setDefaultValues(shared, partial.insert || {});
+            partial.update = CT.setDefaultValues(shared, partial.update || {});
+        }
+        const merged = CT.setDefaultValues(CT.protoColumnConfig, partial);
+        if (merged.class == null && merged.columnClass) {
+            merged.class = merged.columnClass;
+        }
+        if (
+            merged.update &&
+            merged.update.type === "displayonly" &&
+            !merged.update.template &&
+            merged.display &&
+            merged.display.template
+        ) {
+            merged.update.template = merged.display.template;
+        }
+        ["display", "insert", "update"].forEach((mode) => {
+            if (!merged[mode] || typeof merged[mode] !== "object") {
+                return;
+            }
+            if (!Array.isArray(merged[mode].events)) {
+                merged[mode].events = [];
+            }
+        });
+        return merged;
     };
 })(window.KGrid);
 
@@ -358,6 +415,30 @@
             }
         }
         return $();
+    };
+
+    /** Resolved CSS class for a column (`class` or alias `columnClass`). */
+    CT.columnClassName = function (col) {
+        if (!col) {
+            return null;
+        }
+        const cls = col.class != null && col.class !== "" ? col.class : col.columnClass;
+        return cls != null && cls !== "" ? String(cls) : null;
+    };
+
+    /** Add column class + data-name to a header/cell element. */
+    CT.applyColumnCellMeta = function ($el, col) {
+        if (!$el || !$el.length || !col) {
+            return $el;
+        }
+        if (col.name) {
+            $el.attr("data-name", col.name);
+        }
+        const cls = CT.columnClassName(col);
+        if (cls) {
+            $el.addClass(cls);
+        }
+        return $el;
     };
 })(window.KGrid);
 
@@ -479,7 +560,7 @@
             throw new Error("KGrid TABLE_SHELL_TEMPLATE must contain a root <table> element");
         }
 
-        if (options.tableAttrs && options.tableAttrs.constructor === Object) {
+        if (options.tableAttrs && CT.isPlainObject(options.tableAttrs)) {
             Object.keys(options.tableAttrs).forEach((att) => {
                 if (att !== "class") {
                     $table.attr(att, options.tableAttrs[att]);
@@ -835,26 +916,31 @@
         const labelTemplate = existingTh.first().clone(true);
         existingTh.remove();
         const columns = [...options.columns];
-        columns.forEach(col => {
-            if(col.hidden) {
+        columns.forEach((col) => {
+            if (col.hidden) {
                 return;
             }
 
             let cell = labelTemplate.clone(true);
-            if(col.attrs && typeof col.attrs === 'object') {
-                Object.keys(col.attrs).forEach(attr => cell.attr(attr, col.attrs[attr]));
+            if (col.attrs && typeof col.attrs === "object") {
+                Object.keys(col.attrs).forEach((attr) => cell.attr(attr, col.attrs[attr]));
             }
+            CT.applyColumnCellMeta(cell, col);
 
-            if(!col.features?.sort) {
-                const tmp = cell.empty().html(col.label  ?? "");
+            if (!col.features?.sort) {
+                const tmp = cell.empty().html(col.label ?? "");
+                CT.applyColumnCellMeta(tmp, col);
                 labelsRow.append(tmp);
                 return;
             }
-            if(!col.name) {
-                throw new Error("Column must have a name when column.sortable is true: \n"+JSON.stringify(col,null,2));
+            if (!col.name) {
+                throw new Error(
+                    "Column must have a name when column.sortable is true: \n" +
+                        JSON.stringify(col, null, 2)
+                );
             }
             cell.find("span.column-label").text(col.label ?? "");
-            cell.children("a").attr("data-sortfld",col.name);
+            cell.children("a").attr("data-sortfld", col.name);
             cell.appendTo(labelsRow);
         });
         if (CT.hasActionColumn(options)) {
@@ -894,9 +980,11 @@
         if (!formId) {
             return;
         }
-        $(document).find("[form='" + formId + "']").each(function () {
-            CT.cancelFilterSubmit($(this));
-        });
+        $(document)
+            .find("[form='" + formId + "']")
+            .each(function () {
+                CT.cancelFilterSubmit($(this));
+            });
     };
 
     /**
@@ -931,12 +1019,154 @@
         const delay = debounceMs;
         return function filterSubmitDebounced() {
             CT.cancelFilterSubmit($input);
-            const timer = setTimeout(function () {
-                $input.removeData(FILTER_DEBOUNCE_TIMER_KEY);
-                onSubmit.call(this);
-            }.bind(this), delay);
+            const timer = setTimeout(
+                function () {
+                    $input.removeData(FILTER_DEBOUNCE_TIMER_KEY);
+                    onSubmit.call(this);
+                }.bind(this),
+                delay
+            );
             $input.data(FILTER_DEBOUNCE_TIMER_KEY, timer);
         };
+    };
+
+    CT.filterDefaultValue = function (defaultSpec) {
+        if (defaultSpec != null && typeof defaultSpec === "object" && defaultSpec.value != null) {
+            return defaultSpec.value;
+        }
+        return defaultSpec;
+    };
+
+    /** Hidden / persist filters survive reset and stay out of the visible filter row when appropriate. */
+    CT.columnFilterPersisted = function (col) {
+        const filter = col && col.filter ? col.filter : {};
+        return !!(col && (col.hidden || filter.type === "hidden" || filter.persist));
+    };
+
+    /**
+     * Ensure a named filter field exists on the hidden form (creates hidden input if needed).
+     * @returns {HTMLInputElement|null}
+     */
+    CT.ensureFilterField = function (formEl, name, value, operator) {
+        if (!formEl || !name || value == null || value === "") {
+            return null;
+        }
+        let field = formEl.elements && formEl.elements.namedItem(name);
+        if (field && field.length != null && !field.tagName) {
+            field = field[0];
+        }
+        if (!field || !field.tagName) {
+            field = document.createElement("input");
+            field.type = "hidden";
+            field.name = name;
+            formEl.appendChild(field);
+        }
+        field.setAttribute("data-operator", operator || "=");
+        field.value = String(value);
+        field.defaultValue = String(value);
+        return field;
+    };
+
+    CT.applyColumnDefaultFilters = function (formEl, columns) {
+        if (!formEl || !columns) {
+            return;
+        }
+        columns.forEach(function (col) {
+            if (!col.name || (col.features && col.features.filter === false)) {
+                return;
+            }
+            const filter = col.filter;
+            if (!filter || filter.default == null || filter.default === "") {
+                return;
+            }
+            const value = CT.filterDefaultValue(filter.default);
+            if (value == null || value === "") {
+                return;
+            }
+            const operator =
+                filter.operator || (CT.columnFilterPersisted(col) ? "=" : "~=~");
+            const $existing = CT.filterFormField(formEl, col.name);
+            if (col.hidden || filter.type === "hidden" || !$existing.length) {
+                CT.ensureFilterField(formEl, col.name, value, operator);
+                return;
+            }
+            if (!$existing.val()) {
+                $existing.val(String(value));
+                $existing.attr("data-operator", operator);
+            }
+        });
+    };
+
+    /**
+     * Re-apply persisted defaults on reset; optionally re-submit when URL lacks them.
+     * @param {HTMLFormElement|JQuery} filterFormEl
+     * @param {Object} options
+     * @param {Object} [collection] KViews collection
+     */
+    CT.setupDefaultFilters = function (filterFormEl, options, collection) {
+        const form = $(filterFormEl)[0];
+        if (!form || !options || !options.features || !options.features.filtering) {
+            return;
+        }
+        const columns = options.columns || [];
+        CT.applyColumnDefaultFilters(form, columns);
+
+        if (columns.some(CT.columnFilterPersisted)) {
+            let resetting = false;
+            $(form)
+                .off("reset.kgridDefaultFilters")
+                .on("reset.kgridDefaultFilters", function (e) {
+                    if (resetting) {
+                        return;
+                    }
+                    e.preventDefault();
+                    CT.cancelFilterDebounces(form);
+                    resetting = true;
+                    try {
+                        form.reset();
+                        CT.applyColumnDefaultFilters(form, columns);
+                        if (
+                            collection &&
+                            collection.filtering &&
+                            typeof collection.filtering.handleSubmit === "function"
+                        ) {
+                            collection.filtering.handleSubmit(form);
+                        } else {
+                            $(form).trigger("submit");
+                        }
+                    } finally {
+                        resetting = false;
+                    }
+                });
+        }
+
+        if (!collection || !collection.filtering) {
+            return;
+        }
+        const persisted = columns.filter(function (col) {
+            return (
+                col.name &&
+                col.filter &&
+                col.filter.default != null &&
+                col.filter.default !== "" &&
+                CT.columnFilterPersisted(col)
+            );
+        });
+        if (!persisted.length) {
+            return;
+        }
+        const urlFilter = String(
+            (collection.url &&
+                collection.url.parameters &&
+                collection.url.parameters.filter) ||
+                ""
+        );
+        const missing = persisted.some(function (col) {
+            return urlFilter.indexOf(col.name + "=") === -1;
+        });
+        if (missing) {
+            collection.filtering.handleSubmit(form);
+        }
     };
 
     /**
@@ -946,7 +1176,7 @@
      * @returns {jQuery|null} hidden filter form element (for FilterForm / KViews)
      */
     CT.setupFilterHeader = function (table, options) {
-        if(!options.features || !options.features.filtering) {
+        if (!options.features || !options.features.filtering) {
             return null;
         }
         const theadFilters = table.find(".thead-filters");
@@ -955,7 +1185,7 @@
         const columns = [...options.columns];
         const filtersRow = $("<tr>");
         filtersRow.appendTo(theadFilters);
-        const filterFormId = "filter_form_"+CT.uuid();
+        const filterFormId = "filter_form_" + CT.uuid();
         const filterForm = $("<form>")
             .attr("id", filterFormId)
             .attr("hidden", "hidden")
@@ -963,21 +1193,44 @@
             .addClass("table-filter-form")
             .insertBefore(table);
 
-        columns.forEach(col => {
-            if(col.hidden) {
+        columns.forEach((col) => {
+            const filter = col.filter || {};
+            const skipVisible = col.hidden || filter.type === "hidden";
+
+            if (skipVisible) {
+                if (col.features && col.features.filter === false) {
+                    return;
+                }
+                if (!col.name) {
+                    return;
+                }
+                const defVal = CT.filterDefaultValue(filter.default);
+                if (defVal != null && defVal !== "") {
+                    CT.ensureFilterField(
+                        filterForm[0],
+                        col.name,
+                        defVal,
+                        filter.operator || "="
+                    );
+                } else if (CT.columnFilterPersisted(col)) {
+                    CT.ensureFilterField(filterForm[0], col.name, "", filter.operator || "=");
+                }
                 return;
             }
 
-            let filterCell =  $("<th>").appendTo(filtersRow).attr("data-label", col.label);
+            let filterCell = $("<th>").appendTo(filtersRow).attr("data-label", col.label);
+            CT.applyColumnCellMeta(filterCell, col);
 
-            if(col.features.filter===false) {
+            if (col.features.filter === false) {
                 return;
             }
-            if(!col.name) {
-                throw new Error("Column must have a name when column.features.filter is true: \n"+JSON.stringify(col,null,2));
+            if (!col.name) {
+                throw new Error(
+                    "Column must have a name when column.features.filter is true: \n" +
+                        JSON.stringify(col, null, 2)
+                );
             }
 
-            let filter = col.filter;
             let input;
             let pluggableResult = null;
             const pluggable = CT.createFieldInput({ mode: "filter", col, config: filter });
@@ -987,22 +1240,33 @@
                 input.appendTo(filterCell);
                 CT.mountField({ mode: "filter", $input: input, col, config: filter });
             } else {
-                switch(filter.type) {
+                switch (filter.type) {
                     case "select":
-                        if(!filter.options) {
-                            throw new Error("Column must have a filter.options array when column.filter.type is select: \n"+JSON.stringify(col,null,2));
+                        if (!filter.options) {
+                            throw new Error(
+                                "Column must have a filter.options array when column.filter.type is select: \n" +
+                                    JSON.stringify(col, null, 2)
+                            );
                         }
-                        input = $(`<select>`).addClass("form-select form-select-sm");
-                        if(Array.isArray(filter.options)) {
-                            filter.options.forEach((opt)=> {
-                                if(!opt.label || typeof opt.value!=="string") {
-                                    throw new Error("Column must have an filter.options object with label and value when column.filter.type is select: \n"+JSON.stringify(col,null,2));
+                        input = $("<select>").addClass("form-select form-select-sm");
+                        if (Array.isArray(filter.options)) {
+                            filter.options.forEach((opt) => {
+                                if (!opt.label || typeof opt.value !== "string") {
+                                    throw new Error(
+                                        "Column must have an filter.options object with label and value when column.filter.type is select: \n" +
+                                            JSON.stringify(col, null, 2)
+                                    );
                                 }
-                                $("<option>").text(opt.label).attr("value",opt.value).appendTo(input);
+                                $("<option>")
+                                    .text(opt.label)
+                                    .attr("value", opt.value)
+                                    .appendTo(input);
                             });
-                        }
-                        else {
-                            throw new Error("Column must have a filter.options array when column.filter.type is select: \n"+JSON.stringify(col,null,2));
+                        } else {
+                            throw new Error(
+                                "Column must have a filter.options array when column.filter.type is select: \n" +
+                                    JSON.stringify(col, null, 2)
+                            );
                         }
                         input.appendTo(filterCell);
                         break;
@@ -1010,15 +1274,27 @@
                         if (!CT.isValidFilterType(filter.type)) {
                             throw new Error("Unknown filter type: " + filter.type);
                         }
-                        input = $(`<input autocomplete='off' type='${filter.type}' class='form-control form-control-sm'/>`);
+                        input = $(
+                            `<input autocomplete='off' type='${filter.type}' class='form-control form-control-sm'/>`
+                        );
                         input.appendTo(filterCell);
                 }
             }
 
             input.attr("data-operator", filter.operator);
-            input.attr("form",filterFormId);
-            input.attr("name",col.name);
-            const submitFilterForm = function() {
+            input.attr("form", filterFormId);
+            input.attr("name", col.name);
+
+            const defVal = CT.filterDefaultValue(filter.default);
+            if (defVal != null && defVal !== "" && !input.val()) {
+                input.val(String(defVal));
+                input.attr("data-default", String(defVal));
+                if (input[0]) {
+                    input[0].defaultValue = String(defVal);
+                }
+            }
+
+            const submitFilterForm = function () {
                 const form = this.form;
                 if (form) {
                     $(form).trigger("submit");
@@ -1033,7 +1309,6 @@
             });
         });
 
-
         if (CT.hasActionColumn(options)) {
             $("<th>")
                 .addClass("kgrid-row-actions")
@@ -1046,16 +1321,24 @@
 
     CT.FilterForm = function (form) {
         this.form = $(form)[0];
-        this.filter = (name,value,operator="~=~") => {
-            if(!this.form) return this;
-            const $field = CT.filterFormField(this.form, name);
-            if(!$field.length) return this;
+        this.filter = (name, value, operator = "~=~") => {
+            if (!this.form) return this;
+            let $field = CT.filterFormField(this.form, name);
+            if (!$field.length) {
+                CT.ensureFilterField(this.form, name, value, operator);
+                $field = CT.filterFormField(this.form, name);
+            }
+            if (!$field.length) return this;
             CT.flushFilterSubmit($field);
             $field.val(value);
             const oldOperator = $field.attr("data-operator");
             $field.attr("data-operator", operator);
             $(this.form).trigger("submit");
             $field.attr("data-operator", oldOperator);
+            return this;
+        };
+        this.ensure = (name, value, operator = "=") => {
+            CT.ensureFilterField(this.form, name, value, operator);
             return this;
         };
         this.reset = () => {
@@ -1083,6 +1366,7 @@
 
         const c = {...col };
         const $cell = $("<td>").attr("data-label", col.label);
+        CT.applyColumnCellMeta($cell, col);
 
         const attrs = (c.attrs && typeof c.attrs==="object") ? c.attrs : {};
         Object.keys(attrs).forEach(attr => $cell.attr(attr, attrs[attr]));
@@ -1131,9 +1415,14 @@
                 case "hidden":
                     input = $(`<input type='hidden' class='form-input form-control form-control-sm'/>`);
                     break;
-                case "displayonly":
-                    $("<div>").addClass("cell-input").append(c.display.template ?? `{{${c.name}}}`).appendTo($cell);
+                case "displayonly": {
+                    const tpl =
+                        updateConfig.template ||
+                        c.display.template ||
+                        `{{${c.name}}}`;
+                    $("<div>").addClass("cell-input").append(tpl).appendTo($cell);
                     return $cell;
+                }
                 default:
                     if(CT.isValidInputType(updateType)) {
                         input = $(`<input autocomplete='off' type='${updateType}' class='form-input form-control form-control-sm'/>`);
@@ -1271,7 +1560,7 @@
 
     CT.setupPagingFooter = function (footer, options, noVisibleCols) {
         CT.log("setupPagingFooter",footer,options,noVisibleCols);
-        if(options.pagingFooterAttrs && options.pagingFooterAttrs.constructor===Object) {
+        if(options.pagingFooterAttrs && CT.isPlainObject(options.pagingFooterAttrs)) {
             Object.keys(options.pagingFooterAttrs).forEach(att => footer.attr(att,options.pagingFooterAttrs[att]));
         }
         CT.log("noVisibleCols",noVisibleCols);
@@ -1288,7 +1577,7 @@
      * @returns {jQuery}
      */
     CT.setupNewRecordForm = function (table, options, grid) {
-        if(!options.insertFormRow || options.insertFormRow.constructor!==Object) {
+        if(!options.insertFormRow || !CT.isPlainObject(options.insertFormRow)) {
             table.find(".before-main-tbody").remove();
             table.find(".after-main-tbody").remove();
             return;
@@ -1339,13 +1628,14 @@
                 return;
             }
             if(!col.features.create){
-                $("<td>").appendTo(newRecordRow).attr("data-label", col.label);
+                const $empty = $("<td>").appendTo(newRecordRow).attr("data-label", col.label);
+                CT.applyColumnCellMeta($empty, col);
                 return;
             }
 
             const insertConfig = col.insert;
-            if(!insertConfig || insertConfig.constructor!==Object) {
-                throw new Error("Column must have an insert config object when column.features.insert is true: \n"+JSON.stringify(col,null,2));
+            if(!insertConfig || !CT.isPlainObject(insertConfig)) {
+                throw new Error("Column must have an insert config object when column.features.create is true: \n"+JSON.stringify(col,null,2));
             }
 
             if(!insertConfig.type) {
@@ -1415,7 +1705,8 @@
             }
 
             if(insertConfig.type!=="hidden") {
-                $("<td>").append(input).appendTo(newRecordRow).attr("data-label", col.label);
+                const $td = $("<td>").append(input).appendTo(newRecordRow).attr("data-label", col.label);
+                CT.applyColumnCellMeta($td, col);
             }
             CT.mountField({
                 mode: "insert",
@@ -1444,6 +1735,10 @@
             .attr("form",newRecordFormId)
             .attr("type","submit")
             .appendTo(grp);
+
+        if (typeof options.onInsertRowReady === "function") {
+            options.onInsertRowReady(newRecordForm[0], newRecordRow[0]);
+        }
 
         return newRecordRow;
     };
@@ -1545,6 +1840,10 @@
                 );
             });
         }
+
+        if (typeof options.onRowFields === "function") {
+            options.onRowFields(item, view, table);
+        }
     };
 })(window.KGrid);
 
@@ -1611,9 +1910,7 @@
             },
         };
 
-        options.columns = options.columns.map((col) =>
-            CT.setDefaultValues(CT.protoColumnConfig, col)
-        );
+        options.columns = options.columns.map((col) => CT.normalizeColumnConfig(col));
 
         const handlers = options.handlers ?? {};
         delete options.handlers;
@@ -1745,6 +2042,8 @@
         } else {
             throw new Error("Invalid data: missing datasource url or data for table");
         }
+
+        CT.setupDefaultFilters(filterForm, options, api.instance);
 
         return api;
     };

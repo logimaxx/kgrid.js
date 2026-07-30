@@ -92,7 +92,9 @@ Async table initializer.
 | `KGrid.VALID_INPUT_TYPES` | **Deprecated** — use `isValidInputType()` |
 | `KGrid.VALID_FILTER_TYPES` | **Deprecated** — use `isValidFilterType()` |
 | `KGrid.setDefaultValues(proto, partial)` | Deep-merge |
-| `KGrid.FilterForm` | Programmatic filter helper |
+| `KGrid.normalizeColumnConfig(col)` | Proto merge + `input` shorthand + events defaults |
+| `KGrid.isPlainObject(value)` | Realm-safe plain-object check |
+| `KGrid.FilterForm` | Programmatic filter helper (`.filter`, `.ensure`, `.reset`) |
 
 ### Table shell template
 

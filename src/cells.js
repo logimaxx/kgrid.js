@@ -11,6 +11,7 @@
 
         const c = {...col };
         const $cell = $("<td>").attr("data-label", col.label);
+        CT.applyColumnCellMeta($cell, col);
 
         const attrs = (c.attrs && typeof c.attrs==="object") ? c.attrs : {};
         Object.keys(attrs).forEach(attr => $cell.attr(attr, attrs[attr]));
@@ -59,9 +60,14 @@
                 case "hidden":
                     input = $(`<input type='hidden' class='form-input form-control form-control-sm'/>`);
                     break;
-                case "displayonly":
-                    $("<div>").addClass("cell-input").append(c.display.template ?? `{{${c.name}}}`).appendTo($cell);
+                case "displayonly": {
+                    const tpl =
+                        updateConfig.template ||
+                        c.display.template ||
+                        `{{${c.name}}}`;
+                    $("<div>").addClass("cell-input").append(tpl).appendTo($cell);
                     return $cell;
+                }
                 default:
                     if(CT.isValidInputType(updateType)) {
                         input = $(`<input autocomplete='off' type='${updateType}' class='form-input form-control form-control-sm'/>`);

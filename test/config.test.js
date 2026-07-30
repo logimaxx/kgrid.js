@@ -25,6 +25,15 @@ describe("setDefaultValues", () => {
         expect(col.filter.operator).toBe("=");
         expect(col.filter.placeholder).toBe("");
     });
+
+    it("normalizeColumnConfig is used as the public column merge", () => {
+        const col = KGrid.normalizeColumnConfig({
+            name: "y",
+            filter: { persist: true },
+        });
+        expect(col.filter.persist).toBe(true);
+        expect(col.filter.type).toBe("text");
+    });
 });
 
 describe("constants", () => {

@@ -40,6 +40,9 @@
         label: null,
         name: null,
         hidden: false,
+        /** CSS class(es) on header/filter/data/insert cells (alias: columnClass) */
+        class: null,
+        columnClass: null,
         attrs: {},
         features: {
             create: false,
@@ -51,6 +54,11 @@
             template: null,
             events: []
         },
+        /**
+         * Shared insert+update defaults. Explicit insert/update win on conflict.
+         * Example: input: { type: "number", required: true }
+         */
+        input: null,
         insert: {
             type: "text",
             default: null,
@@ -69,6 +77,7 @@
             disabled: false,
             required: false,
             options: null,
+            template: null,
             events: []
         },
         filter: {
@@ -77,6 +86,8 @@
             default: null,
             placeholder: "",
             options: null,
+            /** Keep default across filter form reset / re-submit */
+            persist: false,
             /** Override KGrid.configure({ filterDebounceMs }); 0 = submit immediately */
             debounceMs: null,
         }

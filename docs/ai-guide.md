@@ -114,37 +114,45 @@ features: { filtering, sorting, paging, create, update, delete }
 - `emptyRowMessage`, `pagingPageSizes`, `pagingDefaultSize`, `pagingFooterLabel`
 - `noDataTemplate` — HTML for empty tbody (often `colspan` large, e.g. `99`)
 
-**Insert row:** `insertFormRow: { position: "top" | "bottom" }`, `onNewItemCreated(data)`
+**Insert row:** `insertFormRow: { position: "top" | "bottom" }`, `onNewItemCreated(data)`, `onInsertRowReady(form, row)`
+
+**Row lifecycle:** `onRowFields(item, view, table)` — called after each data row’s `afterrender` / field mount (per-row enable/disable, show/hide).
 
 ---
 
 ## Column shape (minimal)
 
-Each column in `columns: []` is deep-merged with `KGrid.protoColumnConfig`:
+Each column in `columns: []` is normalized via `KGrid.normalizeColumnConfig` (proto merge + shortcuts):
 
 ```javascript
 {
   name: "sku",           // required for filter/sort/update
   label: "SKU",
   hidden: false,
+  class: "col-sku",      // CSS on th/td (alias: columnClass); also sets data-name
   features: { create, update, filter, sort },  // per-column flags
+  // Shared insert+update defaults (explicit insert/update win):
+  // input: { type: "number", required: true },
   display: {
     template: "{{sku}}",  // Handlebars; keep simple {{field}}
-    events: [             // optional; callback or handlers map name
+    events: [             // optional; defaults to []
       { selector: ".x", event: "click", callback: "onSkuClick" }
     ],
   },
-  filter: { type: "text", operator: "~=~" },
-  insert: { type: "text", required: true, events: [] },
-  update: { type: "text", events: [] },
+  filter: {
+    type: "text",
+    operator: "~=~",
+    default: null,       // initial value
+    persist: false,      // keep across filter reset (also implied by hidden / type hidden)
+  },
+  insert: { type: "text", required: true },  // events optional
+  update: { type: "text" },
 }
 ```
 
 **Event callbacks:** string names resolve from `handlers: { onSkuClick: fn }` or `functions` on table options. Insert/update **must** resolve to functions or `init` throws. Display events: missing handler leaves string (runtime error on click).
 
-**Pluggable types:** `multi_select`, `date_range` (built-in); any name in `customInputTypes`; or `KGrid.registerFieldType(name, { create, mount?, validate?, bindFilterSubmit? })`.
-
-Validate types: `KGrid.isValidInputType(type)`, `KGrid.isValidFilterType(type)`.
+**Hidden / persist filters:** columns with `hidden: true` or `filter.type: "hidden"` get a hidden form field (no filter-row cell). `filter.persist` (or hidden) re-applies `filter.default` on form reset.
 
 ---
 
@@ -262,4 +270,4 @@ Run demo locally: `npm run demo` in the kgrid package → `http://localhost:5173
 
 ## Version
 
-This guide matches **@logimaxx/kgrid@0.1.x** (table shell generation, `setInteraction`, `deleteConfirm`, row-actions column with colgroup collapse). If APIs differ in another version, prefer `docs/api.md` in the installed package.
+This guide matches **@logimaxx/kgrid@0.2.1** (row lifecycle hooks, `column.class`, persist filters, `input` shorthand). If APIs differ in another version, prefer `docs/api.md` in the installed package.

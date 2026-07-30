@@ -92,5 +92,9 @@
                 );
             });
         }
+
+        if (typeof options.onRowFields === "function") {
+            options.onRowFields(item, view, table);
+        }
     };
 })(window.KGrid);

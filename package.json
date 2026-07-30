@@ -1,6 +1,6 @@
 {
   "name": "@logimaxx/kgrid",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "KGrid — declarative data table for KViews (filter, sort, paging, inline CRUD). Proprietary — Logimaxx System SRL.",
   "main": "dist/kgrid.js",
   "homepage": "https://logimaxx.ro",
@@ -26,7 +26,8 @@
     "demo": "node demo/server.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "prepare": "npm run build"
+    "prepare": "npm run build",
+    "release": "node scripts/release.mjs"
   },
   "repository": {
     "type": "git",

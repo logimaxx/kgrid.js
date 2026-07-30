@@ -114,7 +114,7 @@
             throw new Error("KGrid TABLE_SHELL_TEMPLATE must contain a root <table> element");
         }
 
-        if (options.tableAttrs && options.tableAttrs.constructor === Object) {
+        if (options.tableAttrs && CT.isPlainObject(options.tableAttrs)) {
             Object.keys(options.tableAttrs).forEach((att) => {
                 if (att !== "class") {
                     $table.attr(att, options.tableAttrs[att]);
