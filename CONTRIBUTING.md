@@ -45,22 +45,23 @@ npm run demo   # http://localhost:5173/demo/
 
 ## Releases
 
-Only maintainers cut versions. The package is `"private": true` — **do not** `npm publish` unless explicitly tasked. Distribution is via GitHub tags / branch installs (`github:logimaxx/kgrid.js#vX.Y.Z`).
+Only maintainers cut versions.
 
 ```bash
-npm run release          # test + build; reminds you to commit dist/ if dirty
-# commit any remaining source + dist changes, then:
-./version.sh patch       # or minor | major — npm version + git push + --tags
+npm run release          # test + build; commit dist/ if dirty
+./version.sh patch       # or minor | major — bump + git push + tags
+npm publish              # scoped public package (@logimaxx/kgrid)
 ```
 
-Equivalent manual steps after a clean tree:
+`publishConfig.access` is `public`. Do not re-add `"private": true` or `npm publish` fails with `EPRIVATE`.
+
+Consumers:
 
 ```bash
-npm version patch        # or minor | major
-git push && git push --tags
+npm install @logimaxx/kgrid
+# or alias folder as kgrid (MaxxOps script paths):
+npm install kgrid@npm:@logimaxx/kgrid@^0.2.2
 ```
-
-Consumers then pin the tag, e.g. `npm install "github:logimaxx/kgrid.js#v0.2.1"`.
 
 ## Questions
 

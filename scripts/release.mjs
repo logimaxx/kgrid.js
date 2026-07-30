@@ -79,13 +79,15 @@ if (gitAvailable()) {
 }
 
 console.log("");
-console.log("Then bump version, tag, and push (no npm publish — package is private):");
+console.log("Then bump version, tag, publish, and push:");
 console.log("  npm version patch   # or minor | major");
+console.log("  npm publish");
 console.log("  git push && git push --tags");
 console.log("");
-console.log("Consumers (e.g. MaxxOps):");
-console.log('  npm install "github:logimaxx/kgrid.js#vX.Y.Z"');
+console.log("Consumers:");
+console.log("  npm install @logimaxx/kgrid");
+console.log('  # MaxxOps (keeps node_modules/kgrid/): npm install kgrid@npm:@logimaxx/kgrid@^0.2.2');
 console.log("");
 console.log(
-    "Shortcut after a clean tree (Unix): ./version.sh patch  — bumps version + pushes tags"
+    "Shortcut after a clean tree (Unix): ./version.sh patch  — bumps version + pushes tags; then npm publish"
 );

@@ -1,6 +1,6 @@
 {
   "name": "@logimaxx/kgrid",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "KGrid — declarative data table for KViews (filter, sort, paging, inline CRUD). Proprietary — Logimaxx System SRL.",
   "main": "dist/kgrid.js",
   "homepage": "https://logimaxx.ro",
@@ -10,7 +10,9 @@
     "url": "https://logimaxx.ro"
   },
   "publisher": "Logimaxx System SRL",
-  "private": true,
+  "publishConfig": {
+    "access": "public"
+  },
   "files": [
     "dist",
     "src",
@@ -31,7 +33,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/logimaxx/kgrid.git"
+    "url": "git+https://github.com/logimaxx/kgrid.git"
   },
   "keywords": [
     "kgrid",
