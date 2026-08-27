@@ -154,16 +154,17 @@ features: {
   create: false,
   update: false,
   delete: false,
+  clone: false,
 }
 ```
 
 ### Row actions column
 
-When any of `create`, `update`, or `delete` is enabled, KGrid adds a trailing column for row controls (delete, save/cancel, insert submit). The same rule is used everywhere so header, filter row, data rows, and `colspan` stay aligned:
+When any of `create`, `update`, `delete`, or `clone` is enabled, KGrid adds a trailing column for row controls (clone, delete, save/cancel, insert submit). The same rule is used everywhere so header, filter row, data rows, and `colspan` stay aligned:
 
 ```javascript
 KGrid.hasActionColumn(options)
-// true when features.delete || features.update || features.create
+// true when features.delete || features.update || features.create || features.clone
 ```
 
 | Markup | Role |
@@ -171,7 +172,9 @@ KGrid.hasActionColumn(options)
 | `th` / `td.kgrid-row-actions` | Header, filters, data rows |
 | `colgroup col.kgrid-row-actions-col` | Width control for `table-layout: fixed` (added at init via `syncActionColumnColgroup`) |
 
-**View vs edit:** In **view** mode (`data-interaction="view"`), the row-actions column is collapsed (`visibility: collapse`, zero width) so data columns use the full table width. In **edit** mode, the column is shown (~100px) with delete / save / cancel buttons and the insert-row submit cell.
+**View vs edit:** In **view** mode (`data-interaction="view"`), the row-actions column is collapsed (`visibility: collapse`, zero width) so data columns use the full table width. In **edit** mode, the column is shown (~130px) with clone / delete / save / cancel buttons and the insert-row submit cell.
+
+`features.clone` (default `false`) adds a clone button. Host must supply `onClone(item, view, event)` — a function, or a string name resolved from `handlers` / `functions` (same as column event callbacks). KGrid does not clone records itself.
 
 The new-record row (`.new-record-row`) uses the same `kgrid-row-actions` class on its submit cell; the whole insert row is hidden in view mode via existing CSS.
 

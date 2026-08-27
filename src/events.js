@@ -78,6 +78,15 @@
             });
         }
 
+        if(options.features.clone) {
+            view.el.find("button.clone-item").off("click").on("click",(event)=>{
+                event.preventDefault();
+                if (typeof options.onClone === "function") {
+                    options.onClone(item, view, event);
+                }
+            });
+        }
+
         if(options.features.delete) {
             view.el.find("button.delete-item").off("click").on("click",(event)=>{
                 event.preventDefault();

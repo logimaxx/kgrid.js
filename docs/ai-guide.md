@@ -158,7 +158,7 @@ Each column in `columns: []` is normalized via `KGrid.normalizeColumnConfig` (pr
 
 ## Row actions column (do not break)
 
-When `features.delete || features.update || features.create`:
+When `features.delete || features.update || features.create || features.clone`:
 
 - Trailing column: `.kgrid-row-actions` on `th`/`td`
 - `<colgroup>` with `col.kgrid-row-actions-col` (synced at init)

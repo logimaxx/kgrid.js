@@ -63,6 +63,17 @@
 
         const handlers = options.handlers ?? {};
         delete options.handlers;
+        if (typeof options.onClone === "string") {
+            const fn =
+                handlers[options.onClone] ||
+                (options.functions && options.functions[options.onClone]);
+            if (!fn || typeof fn !== "function") {
+                throw new Error(
+                    "onClone handler " + options.onClone + " not found or is not a function"
+                );
+            }
+            options.onClone = fn;
+        }
         options.columns.forEach((col) => {
             ["insert", "update", "display"].forEach((mode) => {
                 const events = col[mode].events;

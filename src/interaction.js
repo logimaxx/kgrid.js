@@ -36,8 +36,11 @@
             if (overrides.delete !== undefined) {
                 $shell.attr("data-allow-delete", overrides.delete ? "true" : "false");
             }
+            if (overrides.clone !== undefined) {
+                $shell.attr("data-allow-clone", overrides.clone ? "true" : "false");
+            }
         } else if (interaction === "edit") {
-            $shell.removeAttr("data-allow-insert data-allow-update data-allow-delete");
+            $shell.removeAttr("data-allow-insert data-allow-update data-allow-delete data-allow-clone");
         }
     };
 })(window.KGrid);

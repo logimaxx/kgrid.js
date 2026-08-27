@@ -62,6 +62,30 @@ describe("row actions column", () => {
         expect($table.find(".main-tbody td.kgrid-row-actions button").length).toBe(0);
     });
 
+    it("aligns header and data row for clone-only", () => {
+        const opts = tableOptions({
+            features: { clone: true, update: false, delete: false, create: false },
+            columns: [column("name")],
+        });
+        const { $table } = mountTableShell();
+
+        KGrid.setupLabelsHeader($table.find(".thead-labels"), opts);
+        KGrid.setupDataBody(
+            $table.find(".main-tbody"),
+            opts,
+            $table.find(".thead-labels tr"),
+            null,
+            null,
+            $table.find(".no-data-tbody")
+        );
+
+        const visible = countVisibleDataColumns(opts);
+        expect($table.find(".thead-labels th").length).toBe(visible + 1);
+        expect(countHeaderActions($table)).toBe(1);
+        expect($table.find(".main-tbody td.kgrid-row-actions button.clone-item").length).toBe(1);
+        expect($table.find(".main-tbody td.kgrid-row-actions button.delete-item").length).toBe(0);
+    });
+
     it("syncActionColumnColgroup adds a collapsible col for row actions", () => {
         const { $table } = mountTableShell();
         KGrid.syncActionColumnColgroup($table, 2, true);

@@ -94,11 +94,13 @@ div.save-item{
     display: none;
 }
 .custom-table-shell[data-interaction="view"] .cell-input,
-.custom-table-shell[data-interaction="view"] .delete-item{
+.custom-table-shell[data-interaction="view"] .delete-item,
+.custom-table-shell[data-interaction="view"] .clone-item{
     display: none;
 }
 .custom-table-shell[data-interaction="edit"] .cell-input,
-.custom-table-shell[data-interaction="edit"] .delete-item{
+.custom-table-shell[data-interaction="edit"] .delete-item,
+.custom-table-shell[data-interaction="edit"] .clone-item{
     display: block;
 }
 .new-record-row{
@@ -112,6 +114,9 @@ div.save-item{
     display: none !important;
 }
 .custom-table-shell[data-allow-delete="false"] button.delete-item {
+    display: none !important;
+}
+.custom-table-shell[data-allow-clone="false"] button.clone-item {
     display: none !important;
 }
 .custom-table-shell[data-allow-update="false"][data-interaction="edit"] .cell-input{
@@ -148,12 +153,13 @@ div.save-item{
     overflow: hidden;
 }
 .custom-table-shell[data-interaction="edit"] col.kgrid-row-actions-col {
-    width: 100px;
+    width: 130px;
 }
 .custom-table-shell[data-interaction="edit"] th.kgrid-row-actions {
-    width: 100px;
+    width: 130px;
 }
-.editing .delete-item-grp {
+.editing .delete-item-grp,
+.editing .clone-item-grp {
     display: none;
 }
 

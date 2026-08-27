@@ -111,7 +111,7 @@ See **[table-shell.md](table-shell.md)** for structure, placeholders, and custom
 
 | Symbol | Description |
 |--------|-------------|
-| `KGrid.hasActionColumn(options)` | `true` when `features.delete`, `features.update`, or `features.create` is enabled |
+| `KGrid.hasActionColumn(options)` | `true` when `features.delete`, `features.update`, `features.create`, or `features.clone` is enabled |
 | `KGrid.syncActionColumnColgroup($table, dataColumnCount, hasActions)` | Prepends `<colgroup>` so the actions column can collapse in view mode without reserving width |
 
 Requires `styles/table.css` for view/edit visibility rules on `.kgrid-row-actions` and `col.kgrid-row-actions-col`.

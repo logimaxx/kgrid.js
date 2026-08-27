@@ -40,7 +40,7 @@
         if (!f) {
             return false;
         }
-        return !!(f.delete || f.update || f.create);
+        return !!(f.delete || f.update || f.create || f.clone);
     };
 
     /**

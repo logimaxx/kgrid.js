@@ -45,6 +45,7 @@ describe("constants", () => {
             create: false,
             update: false,
             delete: false,
+            clone: false,
         });
     });
 

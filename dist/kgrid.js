@@ -1,4 +1,4 @@
-/*! @logimaxx/kgrid | (c) Logimaxx System SRL — proprietary | https://logimaxx.ro | built 2026-07-30T15:53:29.364Z */
+/*! @logimaxx/kgrid | (c) Logimaxx System SRL — proprietary | https://logimaxx.ro | built 2026-08-27T12:46:19.397Z */
 
 /* --- configure.js --- */
 /**
@@ -154,7 +154,8 @@
             "paging": false,
             "create": false,
             "update": false,
-            "delete": false
+            "delete": false,
+            "clone": false
         },
         "defaultInteraction": "view",
         "insertFormRow": {
@@ -360,7 +361,7 @@
         if (!f) {
             return false;
         }
-        return !!(f.delete || f.update || f.create);
+        return !!(f.delete || f.update || f.create || f.clone);
     };
 
     /**
@@ -896,8 +897,11 @@
             if (overrides.delete !== undefined) {
                 $shell.attr("data-allow-delete", overrides.delete ? "true" : "false");
             }
+            if (overrides.clone !== undefined) {
+                $shell.attr("data-allow-clone", overrides.clone ? "true" : "false");
+            }
         } else if (interaction === "edit") {
-            $shell.removeAttr("data-allow-insert data-allow-update data-allow-delete");
+            $shell.removeAttr("data-allow-insert data-allow-update data-allow-delete data-allow-clone");
         }
     };
 })(window.KGrid);
@@ -1524,6 +1528,13 @@
 
         if (CT.hasActionColumn(options)) {
             const buttonColumn = $("<td>").addClass("kgrid-row-actions").appendTo(dataRow);
+            if(options.features.clone) {
+                $("<div>").addClass("btn-group clone-item-grp").appendTo(buttonColumn).append(
+                    $("<button>").addClass("btn btn-sm btn-outline-secondary clone-item")
+                        .attr("type","button")
+                        .attr("title","Clone item")
+                        .append("<i class='fa-regular fa-copy'></i>"));
+            }
             if(options.features.delete) {
                 $("<div>").addClass("btn-group delete-item-grp").appendTo(buttonColumn).append(
                     $("<button>").addClass("btn btn-sm btn-danger delete-item")
@@ -1826,6 +1837,15 @@
             });
         }
 
+        if(options.features.clone) {
+            view.el.find("button.clone-item").off("click").on("click",(event)=>{
+                event.preventDefault();
+                if (typeof options.onClone === "function") {
+                    options.onClone(item, view, event);
+                }
+            });
+        }
+
         if(options.features.delete) {
             view.el.find("button.delete-item").off("click").on("click",(event)=>{
                 event.preventDefault();
@@ -1914,6 +1934,17 @@
 
         const handlers = options.handlers ?? {};
         delete options.handlers;
+        if (typeof options.onClone === "string") {
+            const fn =
+                handlers[options.onClone] ||
+                (options.functions && options.functions[options.onClone]);
+            if (!fn || typeof fn !== "function") {
+                throw new Error(
+                    "onClone handler " + options.onClone + " not found or is not a function"
+                );
+            }
+            options.onClone = fn;
+        }
         options.columns.forEach((col) => {
             ["insert", "update", "display"].forEach((mode) => {
                 const events = col[mode].events;

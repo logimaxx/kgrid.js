@@ -12,7 +12,8 @@
             "paging": false,
             "create": false,
             "update": false,
-            "delete": false
+            "delete": false,
+            "clone": false
         },
         "defaultInteraction": "view",
         "insertFormRow": {

@@ -53,6 +53,13 @@
 
         if (CT.hasActionColumn(options)) {
             const buttonColumn = $("<td>").addClass("kgrid-row-actions").appendTo(dataRow);
+            if(options.features.clone) {
+                $("<div>").addClass("btn-group clone-item-grp").appendTo(buttonColumn).append(
+                    $("<button>").addClass("btn btn-sm btn-outline-secondary clone-item")
+                        .attr("type","button")
+                        .attr("title","Clone item")
+                        .append("<i class='fa-regular fa-copy'></i>"));
+            }
             if(options.features.delete) {
                 $("<div>").addClass("btn-group delete-item-grp").appendTo(buttonColumn).append(
                     $("<button>").addClass("btn btn-sm btn-danger delete-item")

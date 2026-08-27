@@ -96,6 +96,7 @@ const grid = await KGrid.init(document.getElementById("table-host"), {
 | [Integration guide](docs/integration.md) | `configure()`, KViews, plugins |
 | [Field types](docs/field-types.md) | Native, built-in, plugins (select2, autosuggest, custom) |
 | [Table shell template](docs/table-shell.md) | HTML template, placeholders, custom markup |
+| [Release guide](docs/release.md) | Maintainer version bump, tag, npm publish |
 
 ## API overview
 
@@ -148,4 +149,5 @@ Proprietary. Copyright © Logimaxx System SRL. All rights reserved. See [LICENSE
 |----------|---------|
 | [NOTICE.md](NOTICE.md) | Company, author, contact |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Internal contribution guidelines |
+| [docs/release.md](docs/release.md) | Version, tag, and publish |
 | [SECURITY.md](SECURITY.md) | Vulnerability reporting |

@@ -45,12 +45,12 @@ npm run demo   # http://localhost:5173/demo/
 
 ## Releases
 
-Only maintainers cut versions.
+Only maintainers cut versions. Full checklist, semver, and troubleshooting: **[docs/release.md](docs/release.md)**.
 
 ```bash
 npm run release          # test + build; commit dist/ if dirty
 ./version.sh patch       # or minor | major — bump + git push + tags
-npm publish              # scoped public package (@logimaxx/kgrid)
+npm publish              # scoped package (@logimaxx/kgrid)
 ```
 
 `publishConfig.access` is `public`. Do not re-add `"private": true` or `npm publish` fails with `EPRIVATE`.
