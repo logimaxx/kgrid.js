@@ -24,6 +24,8 @@ const SRC_ORDER = [
     "data-body.js",
     "insert-row.js",
     "events.js",
+    "preferences.js",
+    "column-chooser.js",
     "init.js",
 ];
 
@@ -47,6 +49,7 @@ function loadKGridSource() {
         TypeError,
         JSON,
         FormData,
+        localStorage: globalThis.localStorage,
         setTimeout: (...args) => globalThis.setTimeout(...args),
         clearTimeout: (id) => globalThis.clearTimeout(id),
     };
@@ -89,23 +92,10 @@ beforeEach(() => {
         confirm(message, onConfirm, onCancel) {
             onConfirm();
         },
-        serializeForm(form) {
-            const fd = new FormData(form);
-            const out = {};
-            for (const [key, value] of fd.entries()) {
-                if (Object.prototype.hasOwnProperty.call(out, key)) {
-                    if (!Array.isArray(out[key])) {
-                        out[key] = [out[key]];
-                    }
-                    out[key].push(value);
-                } else {
-                    out[key] = value;
-                }
-            }
-            return out;
-        },
+        serializeForm: KGrid.serializeFormDefault,
         kviews: null,
         filterDebounceMs: 300,
+        preferencesStorage: null,
         customInputTypes: {
             select2: KGrid.select2(function ($input) {
                 $input.data("select2-mock", true);

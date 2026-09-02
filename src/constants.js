@@ -13,8 +13,15 @@
             "create": false,
             "update": false,
             "delete": false,
-            "clone": false
+            "clone": false,
+            "columnChooser": false
         },
+        /** Persist key for layout (and filters). Required for localStorage. */
+        storageKey: null,
+        /** Extra suffix for saved filters only (e.g. company id). Layout ignores this. */
+        filterStorageScope: null,
+        columnChooserLabel: "Columns",
+        columnChooserResetLabel: "Reset columns",
         "defaultInteraction": "view",
         "insertFormRow": {
             "position": "top"
@@ -41,6 +48,10 @@
         label: null,
         name: null,
         hidden: false,
+        /** When true, column chooser cannot hide this column (still reorderable). */
+        locked: false,
+        /** Runtime: user hid this column via chooser. Not a schema flag. */
+        userHidden: false,
         /** CSS class(es) on header/filter/data/insert cells (alias: columnClass) */
         class: null,
         columnClass: null,

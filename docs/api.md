@@ -12,10 +12,11 @@ Merge host integration hooks. Call before initializing tables.
 | `onError` | `(err) => void` | `console.error` |
 | `confirm` | `(message, onConfirm, onCancel?) => void` | `window.confirm` |
 | `deleteConfirm` | `(context, onConfirm, onCancel?) => void` | `null` — falls back to `confirm` + `DEFAULT_DELETE_CONFIRM_MESSAGE` |
-| `serializeForm` | `(form, columns?) => object` | `FormData` → plain object |
+| `serializeForm` | `(form, columns?) => object` | Named fields; checkboxes always `"1"` / `"0"` (unchecked included) |
 | `kviews` | KViews module | `window.KViews` |
 | `customInputTypes` | `Record<string, FieldTypePlugin>` | Each value: `{ create, mount?, … }` (use `KGrid.select2(fn)` etc.) |
 | `filterDebounceMs` | `number` | Default delay (ms) before filter API submit on the resolved submit event (`input` or `change`); `0` = immediate (default `300`) |
+| `preferencesStorage` | `{ get(key), set(key, value\|null) }` | Override `localStorage` for layout/filter prefs (tests) |
 | `fieldTypes` | same as `customInputTypes` | **Deprecated** alias |
 
 Returns `KGrid` (chainable). Re-syncs `customInputTypes` on every call.
@@ -53,7 +54,8 @@ See [field-types.md](field-types.md).
 
 **Internal helpers:**
 
-- `KGrid.log`, `onError`, `confirm`, `runDeleteConfirm`, `serializeForm`
+- `KGrid.log`, `onError`, `confirm`, `runDeleteConfirm`, `serializeForm`, `serializeFormDefault`
+- `KGrid.isFlagOn(v)` — `true` / `1` / `"1"` are on; used for checkbox flags
 - `KGrid.DEFAULT_DELETE_CONFIRM_MESSAGE` — default text when `deleteConfirm` is not set
 
 `KGrid.select2.helpers` — Select2 option helpers (after loading `kgrid-widgets.js`).
@@ -80,6 +82,7 @@ Async table initializer.
 | `filterForm` | `FilterForm` or setup result |
 | `find(sel)` | ` $host.find(sel)` |
 | `setInteraction`, `getInteraction`, `toggleEditMode`, `setEditMode` | Interaction mode |
+| `getLayout`, `setLayout`, `resetLayout` | Column order / user-hidden columns |
 
 ### Prototypes
 
@@ -112,7 +115,8 @@ See **[table-shell.md](table-shell.md)** for structure, placeholders, and custom
 | Symbol | Description |
 |--------|-------------|
 | `KGrid.hasActionColumn(options)` | `true` when `features.delete`, `features.update`, `features.create`, or `features.clone` is enabled |
-| `KGrid.syncActionColumnColgroup($table, dataColumnCount, hasActions)` | Prepends `<colgroup>` so the actions column can collapse in view mode without reserving width |
+| `KGrid.actionColumnWidth(options)` | Compact CSS width for the actions column under `table-layout: fixed` (from max button count) |
+| `KGrid.syncActionColumnColgroup($table, dataColumnCount, hasActions, options?)` | Prepends `<colgroup>` so the actions column can collapse in view mode; sets actions col width from `actionColumnWidth` |
 
 Requires `styles/table.css` for view/edit visibility rules on `.kgrid-row-actions` and `col.kgrid-row-actions-col`.
 
@@ -152,6 +156,18 @@ Use `setInteraction`.
 
 - `boolean` → set mode
 - no arg / DOM event → toggle view ↔ edit
+
+#### `grid.getLayout()`
+
+`{ columns: [{ name, hidden }] }` — chooser columns in display order. `hidden` is user-hidden (schema-hidden columns are omitted).
+
+#### `grid.setLayout(layout)`
+
+Apply order + visibility, persist when `storageKey` is set, update DOM and the KViews row template.
+
+#### `grid.resetLayout()`
+
+Restore JSON column order and show all chooser columns; clears stored layout.
 
 ---
 

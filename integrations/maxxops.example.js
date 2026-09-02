@@ -6,7 +6,6 @@ KGrid.configure({
     log: typeof klog === "function" ? klog : console.log.bind(console),
     onError: modal_error,
     confirm: modal_confirm,
-    serializeForm: serializeFormData2,
     customInputTypes: {
         select2: KGrid.select2(select2wrapper),
         autosuggest: KGrid.autosuggest(function ($input, options) {

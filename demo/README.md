@@ -39,6 +39,7 @@ The page uses an empty `#kgrid-host`; KGrid builds the table from its internal H
 
 ## UI
 
+- **Columns** — reorder / hide fields; layout and filters persist in `localStorage` (`storageKey: "demo.products"`)
 - **Switch to edit mode** — `kgridDemo.toggleEditMode()`; inline edit + save per row
 - **Insert row** — top of table (create); server returns new `id`
 - **Delete** — per-row trash in edit mode

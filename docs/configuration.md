@@ -155,8 +155,32 @@ features: {
   update: false,
   delete: false,
   clone: false,
+  columnChooser: false,
 }
 ```
+
+### Column chooser and persisted preferences
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `storageKey` | `string` | Persist layout (order + user-hidden) and filter values. Layout key: `kgrid:{storageKey}:layout`. Filters: `kgrid:{storageKey}:filters` plus optional scope. |
+| `filterStorageScope` | `string` | Suffix for saved filters only (e.g. company id). Layout is shared across scopes. |
+| `features.columnChooser` | `boolean` | Columns panel (checkbox + drag). Works without `storageKey` (session only). |
+| `columnChooserLabel` | `string` | Button label (default `"Columns"`) |
+| `columnChooserResetLabel` | `string` | Reset button (default `"Reset columns"`) |
+| `preferencesStorage` | `{ get, set }` | Per-table override of `configure({ preferencesStorage })`; default `localStorage` |
+
+Column flags:
+
+| Field | Meaning |
+|-------|---------|
+| `hidden: true` | Schema — omitted from UI and chooser (e.g. internal `id`) |
+| `locked: true` | Visible; chooser cannot hide it (still reorderable). Use on required list fields such as name. |
+| `userHidden` | Runtime only — set via chooser / `setLayout` |
+
+User-hidden columns use `visibility: collapse` so insert/update/filter controls stay in the DOM. Filter values on hidden columns remain until Reset.
+
+`filter.persist` still means “keep `filter.default` on form reset” — it is not reload persistence. Reload persistence is `storageKey`.
 
 ### Row actions column
 
@@ -172,7 +196,7 @@ KGrid.hasActionColumn(options)
 | `th` / `td.kgrid-row-actions` | Header, filters, data rows |
 | `colgroup col.kgrid-row-actions-col` | Width control for `table-layout: fixed` (added at init via `syncActionColumnColgroup`) |
 
-**View vs edit:** In **view** mode (`data-interaction="view"`), the row-actions column is collapsed (`visibility: collapse`, zero width) so data columns use the full table width. In **edit** mode, the column is shown (~130px) with clone / delete / save / cancel buttons and the insert-row submit cell.
+**View vs edit:** In **view** mode (`data-interaction="view"`), the row-actions column is collapsed (`visibility: collapse`, zero width) so data columns use the full table width. In **edit** mode, the column uses a compact width from `KGrid.actionColumnWidth(options)` (based on how many buttons can show) with clone / delete / save / cancel buttons and the insert-row submit cell.
 
 `features.clone` (default `false`) adds a clone button. Host must supply `onClone(item, view, event)` — a function, or a string name resolved from `handlers` / `functions` (same as column event callbacks). KGrid does not clone records itself.
 
@@ -246,7 +270,8 @@ Each element of `columns: []`:
 |-------|------|-------------|
 | `name` | `string` | Field name (**required** for sort, filter, create, update on that column) |
 | `label` | `string` | Header text |
-| `hidden` | `boolean` | Hide from UI; may still participate in forms (e.g. `id` as `hidden`) |
+| `hidden` | `boolean` | Hide from UI; may still participate in forms (e.g. `id` as `hidden`). Not user-togglable. |
+| `locked` | `boolean` | Column chooser cannot hide this column |
 | `class` / `columnClass` | `string` | CSS class on label/filter/data/insert cells; sets `data-name` |
 | `attrs` | `object` | HTML attributes on header/cells |
 | `input` | `object` | Shared defaults for `insert` + `update` (explicit blocks win) |

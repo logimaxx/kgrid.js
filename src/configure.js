@@ -2,6 +2,69 @@
  * Host-app integration: call KGrid.configure({ ... }) before mounting tables.
  */
 (function (CT) {
+    /**
+     * Flag is on when the API/form value is true, 1, or "1".
+     * @param {*} v
+     * @returns {boolean}
+     */
+    CT.isFlagOn = function (v) {
+        return v === true || v === 1 || v === "1";
+    };
+
+    /**
+     * Walk form.elements (includes fields associated via form="id").
+     * Checkboxes always emit "1" or "0" — FormData omits unchecked boxes.
+     * @param {HTMLFormElement} form
+     * @returns {Record<string, *>}
+     */
+    function defaultSerializeForm(form) {
+        const out = {};
+        const els = form && form.elements;
+        if (!els) {
+            return out;
+        }
+        for (let i = 0; i < els.length; i++) {
+            const el = els[i];
+            const name = el.name;
+            if (!name || el.disabled) {
+                continue;
+            }
+            const type = el.type;
+            if (type === "submit" || type === "button" || type === "reset" || type === "file") {
+                continue;
+            }
+            if (type === "checkbox") {
+                out[name] = el.checked ? "1" : "0";
+                continue;
+            }
+            if (type === "radio") {
+                if (!el.checked) {
+                    continue;
+                }
+                out[name] = el.value;
+                continue;
+            }
+            if (el.tagName === "SELECT" && el.multiple) {
+                out[name] = Array.from(el.selectedOptions).map(function (o) {
+                    return o.value;
+                });
+                continue;
+            }
+            const value = el.value;
+            if (Object.prototype.hasOwnProperty.call(out, name)) {
+                if (!Array.isArray(out[name])) {
+                    out[name] = [out[name]];
+                }
+                out[name].push(value);
+            } else {
+                out[name] = value;
+            }
+        }
+        return out;
+    }
+
+    CT.serializeFormDefault = defaultSerializeForm;
+
     const defaultConfig = {
         log: function () {},
         onError: function (err) {
@@ -16,21 +79,7 @@
         },
         /** @type {((context: object, onConfirm: Function, onCancel?: Function) => void)|null} */
         deleteConfirm: null,
-        serializeForm: function (form, columns) {
-            const fd = new FormData(form);
-            const out = {};
-            for (const [key, value] of fd.entries()) {
-                if (Object.prototype.hasOwnProperty.call(out, key)) {
-                    if (!Array.isArray(out[key])) {
-                        out[key] = [out[key]];
-                    }
-                    out[key].push(value);
-                } else {
-                    out[key] = value;
-                }
-            }
-            return out;
-        },
+        serializeForm: defaultSerializeForm,
         /** @type {Record<string, Function|object>|null} name → wrapper fn or field type plugin */
         customInputTypes: null,
         /** @deprecated use customInputTypes */
@@ -39,6 +88,8 @@
         kviews: null,
         /** Default delay (ms) before filter submit; 0 = immediate. Applies to the resolved filter-submit event. */
         filterDebounceMs: 300,
+        /** { get(key), set(key, value|null) } — null uses localStorage */
+        preferencesStorage: null,
     };
 
     CT._config = Object.assign({}, defaultConfig);

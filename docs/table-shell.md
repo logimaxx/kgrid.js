@@ -16,6 +16,7 @@ After `npm install`, the template is inside the built bundle (`dist/kgrid.js`). 
 
 ```
 .custom-table-shell          ← class added on host if missing
+  .kgrid-column-chooser      ← when features.columnChooser
   table.custom-table
     colgroup.kgrid-colgroup  ← injected at init (data cols + optional row-actions col)
     thead.thead-labels       ← one <th> template; cloned per column in labels.js

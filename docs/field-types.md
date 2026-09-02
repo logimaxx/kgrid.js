@@ -83,6 +83,28 @@ KGrid.configure({
 
 See previous sections in this file for `select`, `multi_select`, `date_range`. Native types need no registration.
 
+### `checkbox` — boolean flag toggle
+
+`filter` / `insert` / `update` `{ type: "checkbox" }` is always a **flag**, not a multi-value checkbox group.
+
+- UI: Bootstrap `form-check form-switch` (`role="switch"`).
+- Serialized value is always `"1"` or `"0"`. Unchecked still appears in the payload (unlike `FormData`).
+- On if the record value is `true`, `1`, or `"1"`; everything else is off.
+- Do not set `update.value` from the field (`value: "{{flag}}"`). KGrid sets `checked` from `item.attributes` after render.
+
+```javascript
+{
+  name: "lot_tracked",
+  display: { template: "{{#if (equals lot_tracked '1')}}Da{{else}}—{{/if}}" },
+  insert: { type: "checkbox", default: "0" },
+  update: { type: "checkbox" },
+}
+```
+
+`KGrid.isFlagOn(v)` is the same on/off rule used for `checked` and insert defaults.
+
+Filter checkboxes are not coerced to `"0"` when empty — filter submit is separate and unchecked means “no filter”.
+
 ## Direct API
 
 `KGrid.registerFieldType(name, plugin)` — same plugin shape; useful in tests or dynamic registration.

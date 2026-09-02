@@ -21,7 +21,7 @@ Human-readable references: [README](../README.md), [configuration.md](configurat
 |-------------|--------|
 | jQuery `>= 3.7.0` | Peer dependency |
 | `@logimaxx/kviews` | Peer; must expose `createCollectionInstance` |
-| `styles/table.css` | **Required** — view/edit modes, row-actions column collapse, cell visibility |
+| `styles/table.css` | **Required** — view/edit modes, row-actions collapse / compact width, cell visibility |
 | Load order | jQuery → KViews → `kgrid.js` → (optional `kgrid-widgets.js`) → `configure({ customInputTypes })` → `init()` |
 | Bootstrap + Font Awesome | Recommended (default template uses `btn-*`, `fa-sort-*`) |
 
@@ -62,7 +62,10 @@ const grid = await KGrid.init(document.getElementById("grid-host"), {
     create: true,
     update: true,
     delete: true,
+    columnChooser: true,
   },
+  storageKey: "catalog.products",
+  filterStorageScope: companyId,
   columns: [/* see column shape below */],
 });
 
@@ -82,7 +85,7 @@ const grid = await KGrid.init(document.getElementById("grid-host"), {
 | `onError` | Always in production apps |
 | `deleteConfirm(context, onConfirm, onCancel)` | Row delete UI (preferred over hardcoded messages) |
 | `confirm(message, onConfirm, onCancel)` | Generic dialogs; default delete flow uses this if `deleteConfirm` unset |
-| `serializeForm(form, columns?)` | Non-flat APIs, checkbox coercion, etc. |
+| `serializeForm(form, columns?)` | Override only for non-flat APIs. Default already emits checkbox flags as `"1"` / `"0"`. |
 | `customInputTypes` | Map of type name → plugin (`KGrid.select2(fn)`, `KGrid.inputType(…)`, or `{ create, … }`) |
 
 Per-table override: pass `deleteConfirm` in `init(host, { deleteConfirm, ... })`.
@@ -101,7 +104,7 @@ Per-table override: pass `deleteConfirm` in `init(host, { deleteConfirm, ... })`
 **Features** (all default `false`):
 
 ```javascript
-features: { filtering, sorting, paging, create, update, delete }
+features: { filtering, sorting, paging, create, update, delete, columnChooser }
 ```
 
 **Interaction:**
@@ -128,7 +131,8 @@ Each column in `columns: []` is normalized via `KGrid.normalizeColumnConfig` (pr
 {
   name: "sku",           // required for filter/sort/update
   label: "SKU",
-  hidden: false,
+  hidden: false,         // schema: omit from UI entirely
+  locked: false,         // column chooser cannot hide this field
   class: "col-sku",      // CSS on th/td (alias: columnClass); also sets data-name
   features: { create, update, filter, sort },  // per-column flags
   // Shared insert+update defaults (explicit insert/update win):
@@ -153,6 +157,8 @@ Each column in `columns: []` is normalized via `KGrid.normalizeColumnConfig` (pr
 **Event callbacks:** string names resolve from `handlers: { onSkuClick: fn }` or `functions` on table options. Insert/update **must** resolve to functions or `init` throws. Display events: missing handler leaves string (runtime error on click).
 
 **Hidden / persist filters:** columns with `hidden: true` or `filter.type: "hidden"` get a hidden form field (no filter-row cell). `filter.persist` (or hidden) re-applies `filter.default` on form reset.
+
+**User column layout + filter reload:** `storageKey` persists layout (all companies) and filter values (`filterStorageScope` suffixes filters, e.g. company id) to `localStorage`. `features.columnChooser` adds a Columns panel (reorder + hide). Schema `hidden` columns stay out of the chooser. `locked: true` columns cannot be hidden. User-hidden columns collapse in the table but keep filter/insert/update inputs. `grid.getLayout()` / `setLayout()` / `resetLayout()`.
 
 ---
 
@@ -200,6 +206,7 @@ grid.filterForm     // .filter(name, value, op), .reset()
 grid.find(sel)      // search under $host
 grid.setInteraction(mode, overrides?)
 grid.getInteraction() // "view" | "edit"
+grid.getLayout() / setLayout() / resetLayout()
 ```
 
 Deprecated: `setEditMode`, `toggleEditMode` — use `setInteraction`.
@@ -211,6 +218,8 @@ Deprecated: `setEditMode`, `toggleEditMode` — use `setInteraction`.
 | Task | Approach |
 |------|----------|
 | Toggle edit UI | `grid.setInteraction("edit")` / `"view"` |
+| Column chooser | `features.columnChooser` + `storageKey` |
+| Persist filters on reload | `storageKey` (+ optional `filterStorageScope`) |
 | Programmatic filter | `grid.filterForm.filter("name", "x", "~=~")` |
 | Reload data | `grid.instance.loadFromRemote()` |
 | Custom delete modal | `KGrid.configure({ deleteConfirm })` |
@@ -270,4 +279,4 @@ Run demo locally: `npm run demo` in the kgrid package → `http://localhost:5173
 
 ## Version
 
-This guide matches **@logimaxx/kgrid@0.2.1** (row lifecycle hooks, `column.class`, persist filters, `input` shorthand). If APIs differ in another version, prefer `docs/api.md` in the installed package.
+This guide matches **@logimaxx/kgrid@0.4.0** (column chooser, persisted layout/filters, row lifecycle hooks, `column.class`, persist filters, `input` shorthand). If APIs differ in another version, prefer `docs/api.md` in the installed package.

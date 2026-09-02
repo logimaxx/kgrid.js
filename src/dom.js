@@ -44,22 +44,57 @@
     };
 
     /**
+     * Compact width for the row-actions column under table-layout:fixed
+     * (fixed layout ignores content; 1% caused overflow). Sized from max buttons
+     * shown in any mode (idle clone/delete vs editing save/cancel).
+     * @param {Object} [options]
+     * @returns {string} CSS width
+     */
+    CT.actionColumnWidth = function (options) {
+        const f = (options && options.features) || {};
+        const idle = (f.clone ? 1 : 0) + (f.delete ? 1 : 0);
+        const editing = f.update ? 2 : 0;
+        const insert = f.create ? 1 : 0;
+        const n = Math.max(idle, editing, insert, 1);
+        return (2.5 * n + 0.75).toFixed(2) + "rem";
+    };
+
+    /**
      * Sync <colgroup> so row-actions width can collapse in view (table-layout: fixed).
      * @param {JQuery} $table
      * @param {number} dataColumnCount visible data columns (no row-actions)
      * @param {boolean} hasActions
+     * @param {Object} [options] table options (for action column width)
      */
-    CT.syncActionColumnColgroup = function ($table, dataColumnCount, hasActions) {
+    CT.syncActionColumnColgroup = function ($table, dataColumnCount, hasActions, options, layoutColumns) {
         let $colgroup = $table.children("colgroup.kgrid-colgroup");
         if (!$colgroup.length) {
             $colgroup = $("<colgroup>").addClass("kgrid-colgroup").prependTo($table);
         }
         $colgroup.empty();
-        for (let i = 0; i < dataColumnCount; i++) {
-            $colgroup.append($("<col>"));
+        const named = Array.isArray(layoutColumns) ? layoutColumns : null;
+        if (named && named.length) {
+            named.forEach(function (col) {
+                const $col = $("<col>");
+                if (col && col.name) {
+                    $col.attr("data-name", col.name);
+                }
+                if (col && col.userHidden) {
+                    $col.addClass("kgrid-user-hidden");
+                }
+                $colgroup.append($col);
+            });
+        } else {
+            for (let i = 0; i < dataColumnCount; i++) {
+                $colgroup.append($("<col>"));
+            }
         }
         if (hasActions) {
-            $colgroup.append($("<col>").addClass("kgrid-row-actions-col"));
+            $colgroup.append(
+                $("<col>")
+                    .addClass("kgrid-row-actions-col")
+                    .css("width", CT.actionColumnWidth(options))
+            );
         }
     };
 
@@ -118,6 +153,7 @@
         if (cls) {
             $el.addClass(cls);
         }
+        $el.toggleClass("kgrid-user-hidden", !!col.userHidden);
         return $el;
     };
 })(window.KGrid);

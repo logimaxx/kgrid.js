@@ -1,5 +1,18 @@
 (function (CT) {
     /**
+     * Bootstrap switch wrapper around a checkbox used as a boolean flag.
+     * @param {JQuery} $input
+     * @returns {JQuery} wrapper
+     */
+    CT.wrapFlagSwitch = function ($input) {
+        $input
+            .attr({ type: "checkbox", role: "switch", value: "1" })
+            .removeClass("form-control form-input form-control-sm")
+            .addClass("form-check-input");
+        return $("<div class='form-check form-switch kgrid-flag-switch mb-0'>").append($input);
+    };
+
+    /**
      * Setup data cell
      * @param {Object} col
      * @param {jQuery} editForm hidden anchor form (fields use form="id")
@@ -68,6 +81,10 @@
                     $("<div>").addClass("cell-input").append(tpl).appendTo($cell);
                     return $cell;
                 }
+                case "checkbox":
+                    input = $("<input autocomplete='off' type='checkbox' class='form-check-input'/>");
+                    skipValueAttr = true;
+                    break;
                 default:
                     if(CT.isValidInputType(updateType)) {
                         input = $(`<input autocomplete='off' type='${updateType}' class='form-input form-control form-control-sm'/>`);
@@ -107,7 +124,8 @@
         if(!updateConfig.disabled && !updateConfig.readonly)
             input.attr("onchange","$(this).parents('tr').addClass('editing')");
 
-        $("<div>").addClass("cell-input").append(input).appendTo($cell);
+        const $control = updateType === "checkbox" ? CT.wrapFlagSwitch(input) : input;
+        $("<div>").addClass("cell-input").append($control).appendTo($cell);
         return $cell;
     };
 })(window.KGrid);

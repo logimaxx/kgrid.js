@@ -144,8 +144,9 @@
      * @param {HTMLFormElement|JQuery} filterFormEl
      * @param {Object} options
      * @param {Object} [collection] KViews collection
+     * @param {{ skipInitSubmit?: boolean }} [extra]
      */
-    CT.setupDefaultFilters = function (filterFormEl, options, collection) {
+    CT.setupDefaultFilters = function (filterFormEl, options, collection, extra) {
         const form = $(filterFormEl)[0];
         if (!form || !options || !options.features || !options.features.filtering) {
             return;
@@ -206,7 +207,7 @@
         const missing = persisted.some(function (col) {
             return urlFilter.indexOf(col.name + "=") === -1;
         });
-        if (missing) {
+        if (missing && !(extra && extra.skipInitSubmit)) {
             collection.filtering.handleSubmit(form);
         }
     };
@@ -359,6 +360,40 @@
         }
 
         return filterForm;
+    };
+
+    /** Write current form fields into collection.url.parameters.filter (same rules as KViews Filtering). */
+    CT.syncFormFiltersToCollectionUrl = function (form, collection) {
+        if (!form || !collection || !collection.url) {
+            return;
+        }
+        if (!collection.url.parameters) {
+            collection.url.parameters = {};
+        }
+        const filter = [];
+        const els = form.elements;
+        if (!els) {
+            return;
+        }
+        for (let i = 0; i < els.length; i++) {
+            const el = els[i];
+            if (!el || !el.name) {
+                continue;
+            }
+            const $el = $(el);
+            const value = $el.val();
+            if (value == null || value === "") {
+                continue;
+            }
+            const operator = $el.attr("data-operator") || $el.data("operator") || "=";
+            filter.push(el.name + operator + value);
+        }
+        collection.offset = 0;
+        if (filter.length) {
+            collection.url.parameters.filter = filter.join(",");
+        } else {
+            delete collection.url.parameters.filter;
+        }
     };
 
     CT.FilterForm = function (form) {

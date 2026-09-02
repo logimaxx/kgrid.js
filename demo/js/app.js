@@ -38,7 +38,9 @@
             create: true,
             update: true,
             delete: true,
+            columnChooser: true,
         },
+        storageKey: "demo.products",
         noDataTemplate:
             "<td colspan='99'>No products match your filters.</td>",
         columns: [
@@ -63,6 +65,7 @@
             {
                 name: "name",
                 label: "Name",
+                locked: true,
                 features: { sort: true, filter: true, create: true, update: true },
                 display: { template: "{{name}}", events: [] },
                 filter: { type: "text", operator: "~=~" },

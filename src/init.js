@@ -57,9 +57,40 @@
                 }
                 return api.setInteraction(api.getInteraction() === "edit" ? "view" : "edit");
             },
+            getLayout() {
+                return CT.layoutFromColumns(options.columns);
+            },
+            setLayout(layout) {
+                CT.applyColumnLayout(api, options, layout);
+                CT.preferencesSaveLayout(options, api.getLayout());
+                return api.getLayout();
+            },
+            resetLayout() {
+                const byName = new Map();
+                options.columns.forEach(function (col) {
+                    if (col && col.name) {
+                        byName.set(col.name, col);
+                    }
+                });
+                options.columns = schemaOrder
+                    .map(function (name) {
+                        return byName.get(name);
+                    })
+                    .filter(Boolean);
+                CT.preferencesSaveLayout(options, null);
+                CT.applyColumnLayout(api, options, null);
+                return api.getLayout();
+            },
         };
 
-        options.columns = options.columns.map((col) => CT.normalizeColumnConfig(col));
+        options.columns = (options.columns || []).map((col) => CT.normalizeColumnConfig(col));
+        const schemaOrder = options.columns.map(function (col) {
+            return col.name;
+        });
+        options.columns = CT.mergeLayoutIntoColumns(
+            options.columns,
+            CT.preferencesLoadLayout(options)
+        );
 
         const handlers = options.handlers ?? {};
         delete options.handlers;
@@ -127,7 +158,13 @@
         const hasActionColumn = CT.hasActionColumn(options);
         const visibleColumnsCount = labelsRow.find("th").length;
         const dataColumnCount = visibleColumnsCount - (hasActionColumn ? 1 : 0);
-        CT.syncActionColumnColgroup(table, dataColumnCount, hasActionColumn);
+        CT.syncActionColumnColgroup(
+            table,
+            dataColumnCount,
+            hasActionColumn,
+            options,
+            CT.chooserColumns(options.columns)
+        );
 
         const filterForm = options.filterForm ?? CT.setupFilterHeader(table, options);
 
@@ -191,7 +228,24 @@
             if (options.insertUrl) {
                 api.instance.setUrl(options.insertUrl, "insert");
             }
+        }
+
+        CT.setupDefaultFilters(filterForm, options, api.instance, { skipInitSubmit: true });
+        const filterFormEl = filterForm && (filterForm.jquery ? filterForm[0] : filterForm);
+        CT.applyUserFilters(
+            filterFormEl,
+            options.columns,
+            CT.preferencesLoadFilters(options)
+        );
+        CT.ensureUrlFiltersOnForm(filterFormEl, api.instance);
+        CT.setupFilterPersistence(filterFormEl, options);
+        CT.setupColumnChooser($host, options, api);
+
+        if (options.url) {
             try {
+                if (options.features && options.features.filtering && filterFormEl) {
+                    CT.syncFormFiltersToCollectionUrl(filterFormEl, api.instance);
+                }
                 await api.instance.loadFromRemote();
             } catch (error) {
                 CT.onError(error);
@@ -202,8 +256,6 @@
         } else {
             throw new Error("Invalid data: missing datasource url or data for table");
         }
-
-        CT.setupDefaultFilters(filterForm, options, api.instance);
 
         return api;
     };

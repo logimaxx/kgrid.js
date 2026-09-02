@@ -9,38 +9,16 @@
         return td;
     };
 
-    CT.setupDataBody = function (dataBody, options, labelsRow, filterForm, pagingFooter, noDataTbody) {
+    /**
+     * Fill a data <tr> with cells + optional row-actions (KViews item template).
+     * @param {JQuery} dataRow
+     * @param {Object} options
+     * @returns {JQuery} dataRow
+     */
+    CT.fillDataRow = function (dataRow, options) {
         const columns = [...options.columns];
-        const dataRow = $("<tr>").appendTo(dataBody);
-        if(options.dataRowAttrs && typeof options.dataRowAttrs!=="object") {
-            throw new Error("options.dataRowAttrs must be an object");
-        }
-        const dataRowAttrs = {...(options.dataRowAttrs ?? {})};
-        Object.keys(dataRowAttrs).forEach(attr => dataRow.attr(attr,dataRowAttrs[attr]));
-
-        {
-            dataBody.data("emptyview",noDataTbody);
-
-            if(options?.features?.sorting) {
-                dataBody.data("sort",labelsRow);
-            }
-            if(pagingFooter) {
-                dataBody.data("paging",pagingFooter.find(".pages"))
-                    .data("pagesizeinp",pagingFooter.find(".pagesize"))
-                    .data("totalrecscount",pagingFooter.find(".totalrecscount"));
-            }
-
-            if(filterForm) {
-                dataBody.data("filter",filterForm);
-            }
-
-            if(options.type) {
-                dataBody.data("type",options.type);
-            }
-        }
-
         const dataRowFormId = "data_row_form_"+CT.uuid()+"_{{this.id}}";
-        const editForm = options.features.update
+        const editForm = options.features && options.features.update
             ? $("<form class='edit-form table-row-form'>").attr("id", dataRowFormId)
             : null;
 
@@ -90,7 +68,39 @@
         if (editForm) {
             CT.anchorRowForm(editForm, dataRow);
         }
+        return dataRow;
+    };
 
+    CT.setupDataBody = function (dataBody, options, labelsRow, filterForm, pagingFooter, noDataTbody) {
+        const dataRow = $("<tr>").appendTo(dataBody);
+        if(options.dataRowAttrs && typeof options.dataRowAttrs!=="object") {
+            throw new Error("options.dataRowAttrs must be an object");
+        }
+        const dataRowAttrs = {...(options.dataRowAttrs ?? {})};
+        Object.keys(dataRowAttrs).forEach(attr => dataRow.attr(attr,dataRowAttrs[attr]));
+
+        {
+            dataBody.data("emptyview",noDataTbody);
+
+            if(options?.features?.sorting) {
+                dataBody.data("sort",labelsRow);
+            }
+            if(pagingFooter) {
+                dataBody.data("paging",pagingFooter.find(".pages"))
+                    .data("pagesizeinp",pagingFooter.find(".pagesize"))
+                    .data("totalrecscount",pagingFooter.find(".totalrecscount"));
+            }
+
+            if(filterForm) {
+                dataBody.data("filter",filterForm);
+            }
+
+            if(options.type) {
+                dataBody.data("type",options.type);
+            }
+        }
+
+        CT.fillDataRow(dataRow, options);
         return dataBody;
     };
 

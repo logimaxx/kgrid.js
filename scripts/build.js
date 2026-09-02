@@ -26,6 +26,8 @@ const order = [
     "data-body.js",
     "insert-row.js",
     "events.js",
+    "preferences.js",
+    "column-chooser.js",
     "init.js",
 ];
 

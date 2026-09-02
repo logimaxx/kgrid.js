@@ -94,6 +94,10 @@
                     case "hidden":
                         input = $(`<input type='hidden' class='form-input form-control form-control-sm'/>`);
                         break;
+                    case "checkbox":
+                        input = $("<input autocomplete='off' type='checkbox' class='form-check-input'/>");
+                        input.attr("data-type", insertType);
+                        break;
                     default:
                         if(CT.isValidInputType(insertType)) {
                             input = $(`<input autocomplete='off' type='${insertType}' class='form-input form-control form-control-sm'/>`);
@@ -104,12 +108,14 @@
                 }
             }
 
-            if(insertConfig.default != null && insertConfig.default !== "" && !input.val()) {
-                const defVal = (typeof insertConfig.default === "object" && insertConfig.default.value != null)
-                    ? insertConfig.default.value
-                    : insertConfig.default;
-                if(String(defVal).trim()) {
-                    input.val(defVal).trigger("change");
+            const rawDefault = (typeof insertConfig.default === "object" && insertConfig.default && insertConfig.default.value != null)
+                ? insertConfig.default.value
+                : insertConfig.default;
+            if (insertType === "checkbox") {
+                input.prop("checked", CT.isFlagOn(rawDefault));
+            } else if(insertConfig.default != null && insertConfig.default !== "" && !input.val()) {
+                if(String(rawDefault).trim()) {
+                    input.val(rawDefault).trigger("change");
                 }
             }
 
@@ -132,7 +138,8 @@
             }
 
             if(insertConfig.type!=="hidden") {
-                const $td = $("<td>").append(input).appendTo(newRecordRow).attr("data-label", col.label);
+                const $control = insertType === "checkbox" ? CT.wrapFlagSwitch(input) : input;
+                const $td = $("<td>").append($control).appendTo(newRecordRow).attr("data-label", col.label);
                 CT.applyColumnCellMeta($td, col);
             }
             CT.mountField({

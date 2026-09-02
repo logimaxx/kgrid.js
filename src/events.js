@@ -64,6 +64,14 @@
                 $(input).val(typeof val === "boolean" ? String(val) : val);
             });
 
+            view.el.find("input[type='checkbox']").each((index, input) => {
+                const col = colMap.get(input.name);
+                if (!col) {
+                    return;
+                }
+                input.checked = CT.isFlagOn(item.attributes[col.name]);
+            });
+
             view.el.find("form.edit-form").off("submit").on("submit",(event)=>{
                 const form = event.target;
                 event.preventDefault();

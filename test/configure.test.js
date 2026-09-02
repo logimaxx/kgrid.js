@@ -24,6 +24,33 @@ describe("KGrid.configure", () => {
         expect(data).toEqual({ a: "1", b: "2" });
     });
 
+    it("serializeForm emits 1/0 for checkboxes including unchecked", () => {
+        document.body.innerHTML = `
+<form id="f">
+  <input type="checkbox" name="on_flag" value="1" checked />
+  <input type="checkbox" name="off_flag" value="1" />
+  <input name="title" value="x" />
+</form>`;
+        const form = document.getElementById("f");
+        expect(KGrid.serializeForm(form)).toEqual({
+            on_flag: "1",
+            off_flag: "0",
+            title: "x",
+        });
+    });
+
+    it("isFlagOn accepts true, 1, and '1' only", () => {
+        expect(KGrid.isFlagOn(true)).toBe(true);
+        expect(KGrid.isFlagOn(1)).toBe(true);
+        expect(KGrid.isFlagOn("1")).toBe(true);
+        expect(KGrid.isFlagOn(false)).toBe(false);
+        expect(KGrid.isFlagOn(0)).toBe(false);
+        expect(KGrid.isFlagOn("0")).toBe(false);
+        expect(KGrid.isFlagOn("")).toBe(false);
+        expect(KGrid.isFlagOn(null)).toBe(false);
+        expect(KGrid.isFlagOn("on")).toBe(false);
+    });
+
     it("confirm invokes onConfirm when host approves", () => {
         const onConfirm = vi.fn();
         const onCancel = vi.fn();

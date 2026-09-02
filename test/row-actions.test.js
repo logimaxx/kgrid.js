@@ -88,11 +88,14 @@ describe("row actions column", () => {
 
     it("syncActionColumnColgroup adds a collapsible col for row actions", () => {
         const { $table } = mountTableShell();
-        KGrid.syncActionColumnColgroup($table, 2, true);
+        KGrid.syncActionColumnColgroup($table, 2, true, {
+            features: { delete: true },
+        });
 
         const $cols = $table.find("colgroup.kgrid-colgroup col");
         expect($cols.length).toBe(3);
         expect($cols.last().hasClass("kgrid-row-actions-col")).toBe(true);
+        expect($cols.last().css("width")).toBe("3.25rem");
     });
 
     it("filter row matches label column count when filtering is on", () => {

@@ -67,4 +67,17 @@ describe("dom helpers", () => {
         ).toBe(false);
     });
 
+    it("actionColumnWidth scales with max visible buttons", () => {
+        expect(KGrid.actionColumnWidth({ features: { delete: true } })).toBe("3.25rem");
+        expect(KGrid.actionColumnWidth({ features: { update: true } })).toBe("5.75rem");
+        expect(
+            KGrid.actionColumnWidth({ features: { delete: true, clone: true } })
+        ).toBe("5.75rem");
+        expect(
+            KGrid.actionColumnWidth({
+                features: { delete: true, update: true, clone: true },
+            })
+        ).toBe("5.75rem");
+    });
+
 });

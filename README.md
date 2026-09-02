@@ -1,6 +1,6 @@
 # KGrid
 
-**KGrid** is a declarative data table (JSON configuration) built on [KViews](https://github.com/logimaxx/kviews.js). It supports filtering, sorting, paging, and inline create/update/delete.
+**KGrid** is a declarative data table (JSON configuration) built on [KViews](https://github.com/logimaxx/kviews.js). It supports filtering, sorting, paging, inline create/update/delete, and user-customizable columns with persisted filters.
 
 > **Proprietary — Logimaxx System SRL.** This repository is not open source. Use, copy, and distribution require explicit permission. See [LICENSE](LICENSE) and [NOTICE.md](NOTICE.md).
 
@@ -108,6 +108,7 @@ const grid = await KGrid.init(document.getElementById("table-host"), {
 | `KGrid.hasActionColumn(opts)` | Whether a trailing row-actions column is rendered |
 | `KGrid.registerFieldType(name, plugin)` | Custom filter/insert/update widgets |
 | `grid.setInteraction('view' \| 'edit')` | View (data only, full width) or edit (inputs + action buttons) |
+| `grid.getLayout()` / `setLayout()` / `resetLayout()` | Column order and user-hidden columns |
 | `grid.instance` | KViews collection |
 | `grid.filterForm` | Programmatic filters |
 
