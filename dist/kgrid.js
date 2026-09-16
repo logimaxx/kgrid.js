@@ -1,4 +1,4 @@
-/*! @logimaxx/kgrid | (c) Logimaxx System SRL — proprietary | https://logimaxx.ro | built 2026-09-16T18:47:33.243Z */
+/*! @logimaxx/kgrid | (c) Logimaxx System SRL — proprietary | https://logimaxx.ro | built 2026-09-16T18:50:44.259Z */
 
 /* --- configure.js --- */
 /**
@@ -741,6 +741,43 @@
         return (2.5 * n + 0.75).toFixed(2) + "rem";
     };
 
+    CT.getBootstrapDropdown = function () {
+        const bs =
+            (typeof bootstrap !== "undefined" && bootstrap) ||
+            (typeof window !== "undefined" && window.bootstrap) ||
+            null;
+        return bs && bs.Dropdown ? bs.Dropdown : null;
+    };
+
+    /**
+     * Init Bootstrap dropdowns with fixed Popper strategy (avoids table clipping / click-through).
+     * Do not use data-bs-popper-config — Bootstrap may treat the attribute as a raw string.
+     * @param {JQuery} $root
+     */
+    CT.mountRowActionDropdowns = function ($root) {
+        if (!$root || !$root.length) {
+            return;
+        }
+        const Dropdown = CT.getBootstrapDropdown();
+        if (!Dropdown) {
+            return;
+        }
+        $root.find(".kgrid-row-actions-menu > .kgrid-actions-dropdown-toggle").each(function () {
+            const el = this;
+            const prev = Dropdown.getInstance(el);
+            if (prev) {
+                prev.dispose();
+            }
+            new Dropdown(el, {
+                popperConfig: function (defaultConfig) {
+                    const next = defaultConfig && typeof defaultConfig === "object" ? { ...defaultConfig } : {};
+                    next.strategy = "fixed";
+                    return next;
+                },
+            });
+        });
+    };
+
     function iconHtml(icon) {
         if (!icon) {
             return "";
@@ -815,11 +852,9 @@
                 .addClass("btn-group kgrid-row-actions-menu")
                 .appendTo($buttonColumn);
             $("<button>")
-                .addClass("btn btn-sm btn-outline-secondary dropdown-toggle")
+                .addClass("btn btn-sm btn-outline-secondary dropdown-toggle kgrid-actions-dropdown-toggle")
                 .attr({
                     type: "button",
-                    "data-bs-toggle": "dropdown",
-                    "data-bs-popper-config": JSON.stringify({ strategy: "fixed" }),
                     "aria-expanded": "false",
                     title: "Actions",
                 })
@@ -2628,12 +2663,14 @@
         }
 
         const ra = CT.resolveRowActions(options);
+        CT.mountRowActionDropdowns(view.el);
         const hasClone = ra.menuItems.some((it) => it.action === "clone");
         const hasDelete = ra.menuItems.some((it) => it.action === "delete");
 
         if (hasClone) {
             view.el.find(".clone-item").off("click").on("click", (event) => {
                 event.preventDefault();
+                event.stopPropagation();
                 if (typeof options.onClone === "function") {
                     options.onClone(item, view, event);
                 }
@@ -2643,6 +2680,7 @@
         if (hasDelete) {
             view.el.find(".delete-item").off("click").on("click", (event) => {
                 event.preventDefault();
+                event.stopPropagation();
                 view.el.addClass("confirm-delete");
                 const clearConfirmState = () => view.el.removeClass("confirm-delete");
                 CT.runDeleteConfirm(
@@ -2672,6 +2710,7 @@
                         return;
                     }
                     event.preventDefault();
+                    event.stopPropagation();
                     cb(event, item, view);
                 });
         }

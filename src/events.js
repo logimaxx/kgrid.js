@@ -87,12 +87,14 @@
         }
 
         const ra = CT.resolveRowActions(options);
+        CT.mountRowActionDropdowns(view.el);
         const hasClone = ra.menuItems.some((it) => it.action === "clone");
         const hasDelete = ra.menuItems.some((it) => it.action === "delete");
 
         if (hasClone) {
             view.el.find(".clone-item").off("click").on("click", (event) => {
                 event.preventDefault();
+                event.stopPropagation();
                 if (typeof options.onClone === "function") {
                     options.onClone(item, view, event);
                 }
@@ -102,6 +104,7 @@
         if (hasDelete) {
             view.el.find(".delete-item").off("click").on("click", (event) => {
                 event.preventDefault();
+                event.stopPropagation();
                 view.el.addClass("confirm-delete");
                 const clearConfirmState = () => view.el.removeClass("confirm-delete");
                 CT.runDeleteConfirm(
@@ -131,6 +134,7 @@
                         return;
                     }
                     event.preventDefault();
+                    event.stopPropagation();
                     cb(event, item, view);
                 });
         }

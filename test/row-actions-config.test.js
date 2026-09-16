@@ -96,9 +96,10 @@ describe("renderRowActions", () => {
         expect($actions.find("button.save-item").length).toBe(1);
         expect($actions.find("button.cancel-edit").length).toBe(1);
         expect($actions.find(".edit-item-grp button.clone-item").length).toBe(0);
-        expect(
-            $actions.find(".kgrid-row-actions-menu > .dropdown-toggle").attr("data-bs-popper-config")
-        ).toContain("fixed");
+        const $toggle = $actions.find(".kgrid-actions-dropdown-toggle");
+        expect($toggle.length).toBe(1);
+        expect($toggle.attr("data-bs-toggle")).toBeUndefined();
+        expect($toggle.attr("data-bs-popper-config")).toBeUndefined();
     });
 
     it("renders custom action button with data-kgrid-action", () => {
