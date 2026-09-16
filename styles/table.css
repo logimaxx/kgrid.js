@@ -176,8 +176,19 @@ div.save-item{
     width: 5.75rem;
 }
 .custom-table-shell[data-interaction="edit"] th.kgrid-row-actions,
-.custom-table-shell[data-interaction="edit"] td.kgrid-row-actions {
+.custom-table-shell[data-interaction="edit"] td.kgrid-row-actions,
+.custom-table-shell[data-has-row-menu="true"] th.kgrid-row-actions,
+.custom-table-shell[data-has-row-menu="true"] td.kgrid-row-actions {
     white-space: nowrap;
+    overflow: visible;
+}
+/* Dropdown menus must escape table stacking (rows paint over absolute menus). */
+.kgrid-row-actions-menu .dropdown-menu {
+    z-index: 1055;
+}
+.custom-table-shell tr:has(.kgrid-row-actions-menu .dropdown-toggle.show) {
+    position: relative;
+    z-index: 6;
 }
 .editing .delete-item-grp,
 .editing .clone-item-grp,

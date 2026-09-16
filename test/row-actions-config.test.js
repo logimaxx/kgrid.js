@@ -96,6 +96,9 @@ describe("renderRowActions", () => {
         expect($actions.find("button.save-item").length).toBe(1);
         expect($actions.find("button.cancel-edit").length).toBe(1);
         expect($actions.find(".edit-item-grp button.clone-item").length).toBe(0);
+        expect(
+            $actions.find(".kgrid-row-actions-menu > .dropdown-toggle").attr("data-bs-popper-config")
+        ).toContain("fixed");
     });
 
     it("renders custom action button with data-kgrid-action", () => {

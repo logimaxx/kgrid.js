@@ -291,12 +291,15 @@
                 .attr({
                     type: "button",
                     "data-bs-toggle": "dropdown",
+                    "data-bs-popper-config": JSON.stringify({ strategy: "fixed" }),
                     "aria-expanded": "false",
                     title: "Actions",
                 })
                 .html("<i class='fas fa-ellipsis-v'></i>")
                 .appendTo($menuWrap);
-            const $menu = $("<ul>").addClass("dropdown-menu dropdown-menu-end").appendTo($menuWrap);
+            const $menu = $("<ul>")
+                .addClass("dropdown-menu dropdown-menu-end")
+                .appendTo($menuWrap);
             idleItems.forEach(function (item) {
                 const $li = $("<li>").appendTo($menu);
                 const $a = $("<button>")
@@ -316,6 +319,12 @@
                 }
                 if (item.class) {
                     $a.addClass(item.class);
+                }
+                if (item.btnClass && !item.action) {
+                    // Custom items may pass btnClass meant for button mode; keep danger etc. as text color hints.
+                    if (/\bbtn-danger\b|\btext-danger\b|\boutline-danger\b/.test(item.btnClass)) {
+                        $a.addClass("text-danger");
+                    }
                 }
                 const label = item.label || item.title || item.action || item.id;
                 if (item.icon) {
