@@ -117,7 +117,7 @@ features: { filtering, sorting, paging, create, update, delete, columnChooser }
 - `emptyRowMessage`, `pagingPageSizes`, `pagingDefaultSize`, `pagingFooterLabel`
 - `noDataTemplate` — HTML for empty tbody (often `colspan` large, e.g. `99`)
 
-**Insert row:** `insertFormRow: { position: "top" | "bottom" }`, `onNewItemCreated(data)`, `onInsertRowReady(form, row)`
+**Insert row:** `insertFormRow: { position: "top" | "bottom" }`, `onNewItemCreated(data, form)`, `onInsertRowReady(form, row)`
 
 **Row lifecycle:** `onRowFields(item, view, table)` — called after each data row’s `afterrender` / field mount (per-row enable/disable, show/hide).
 
@@ -132,6 +132,7 @@ Each column in `columns: []` is normalized via `KGrid.normalizeColumnConfig` (pr
   name: "sku",           // required for filter/sort/update
   label: "SKU",
   hidden: false,         // schema: omit from UI entirely
+  defaultHidden: false,  // start collapsed; still in the column chooser
   locked: false,         // column chooser cannot hide this field
   class: "col-sku",      // CSS on th/td (alias: columnClass); also sets data-name
   features: { create, update, filter, sort },  // per-column flags
@@ -158,20 +159,23 @@ Each column in `columns: []` is normalized via `KGrid.normalizeColumnConfig` (pr
 
 **Hidden / persist filters:** columns with `hidden: true` or `filter.type: "hidden"` get a hidden form field (no filter-row cell). `filter.persist` (or hidden) re-applies `filter.default` on form reset.
 
-**User column layout + filter reload:** `storageKey` persists layout (all companies) and filter values (`filterStorageScope` suffixes filters, e.g. company id) to `localStorage`. `features.columnChooser` adds a Columns panel (reorder + hide). Schema `hidden` columns stay out of the chooser. `locked: true` columns cannot be hidden. User-hidden columns collapse in the table but keep filter/insert/update inputs. `grid.getLayout()` / `setLayout()` / `resetLayout()`.
+**User column layout + filter reload:** `storageKey` persists layout (all companies) and filter values (`filterStorageScope` suffixes filters, e.g. company id) to `localStorage`. `features.columnChooser` adds a Columns panel (reorder + hide). Schema `hidden` columns stay out of the chooser. `defaultHidden: true` starts the column collapsed but still listed in the chooser (lean list defaults). `locked: true` columns cannot be hidden. User-hidden columns collapse in the table but keep filter/insert/update inputs. `grid.getLayout()` / `setLayout()` / `resetLayout()` (reset restores `defaultHidden`, not “all visible”).
 
 ---
 
 ## Row actions column (do not break)
 
-When `features.delete || features.update || features.create || features.clone`:
+Prefer `rowActions: { display, items }` for delete / clone / custom actions. `features.update` injects Save / Cancel. `features.create` keeps the insert submit cell. Legacy `features.delete` / `features.clone` still shim when `rowActions` is omitted.
+
+When `KGrid.hasActionColumn(options)`:
 
 - Trailing column: `.kgrid-row-actions` on `th`/`td`
 - `<colgroup>` with `col.kgrid-row-actions-col` (synced at init)
-- **View mode:** column collapsed — full width for data columns
-- **Edit mode:** column visible (~100px) — delete, save/cancel; insert row submit in `.new-record-row`
+- **View mode:** column collapsed unless `data-has-row-menu` (idle menu actions present) — full width for data columns when collapsed
+- **Edit mode:** column visible — menu/idle actions + save/cancel; insert row submit in `.new-record-row`
+- **Dropdown mode:** `.kgrid-row-actions-menu` for idle items; save/cancel stay as buttons
 
-Rule: `KGrid.hasActionColumn(options)` — use the same logic if extending DOM; do not add action `<th>` only in header or only in body.
+Rule: always use `KGrid.hasActionColumn(options)` — do not add action `<th>` only in header or only in body. Do not invent a data column for action buttons.
 
 ---
 
@@ -244,6 +248,7 @@ Deprecated: `setEditMode`, `toggleEditMode` — use `setInteraction`.
 10. **Editing `dist/kgrid.js` in node_modules** — change `src/` in the package or fork; rebuild with `npm run build`.
 11. **Assuming cancel edit reloads local `data`** — cancel button calls `loadFromRemote()`; local-only grids need a custom approach.
 12. **Breaking class names** — `custom-table-shell`, `data-interaction`, `main-tbody`, `kgrid-row-actions` are required by CSS and KViews wiring.
+13. **Host CSS `display: none` on `.kgrid-user-hidden`** — leaves width gaps under `table-layout: fixed`; keep `visibility: collapse` (clip text if Chrome stretches thead).
 
 ---
 
@@ -279,4 +284,4 @@ Run demo locally: `npm run demo` in the kgrid package → `http://localhost:5173
 
 ## Version
 
-This guide matches **@logimaxx/kgrid@0.4.0** (column chooser, persisted layout/filters, row lifecycle hooks, `column.class`, persist filters, `input` shorthand). If APIs differ in another version, prefer `docs/api.md` in the installed package.
+This guide matches **@logimaxx/kgrid@0.4.1** (column chooser, `defaultHidden`, persisted layout/filters, row lifecycle hooks, `column.class`, persist filters, `input` shorthand). If APIs differ in another version, prefer `docs/api.md` in the installed package.

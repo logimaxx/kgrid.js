@@ -324,16 +324,25 @@
                 }
             }
 
-            input.attr("data-operator", filter.operator);
+            const operator =
+                filter.operator ||
+                (filter.type === "multi_select" ? "><" : undefined);
+            if (operator != null) {
+                input.attr("data-operator", operator);
+            }
             input.attr("form", filterFormId);
             input.attr("name", col.name);
 
             const defVal = CT.filterDefaultValue(filter.default);
             if (defVal != null && defVal !== "" && !input.val()) {
-                input.val(String(defVal));
-                input.attr("data-default", String(defVal));
+                const normalized =
+                    filter.type === "multi_select"
+                        ? CT.normalizeMultiSelectValue(defVal, filter.separator)
+                        : String(defVal);
+                input.val(normalized);
+                input.attr("data-default", normalized);
                 if (input[0]) {
-                    input[0].defaultValue = String(defVal);
+                    input[0].defaultValue = normalized;
                 }
             }
 

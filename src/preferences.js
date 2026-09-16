@@ -264,11 +264,15 @@
         return result;
     };
 
+    CT.columnDefaultUserHidden = function (col) {
+        return !!(col && col.defaultHidden && !col.locked && !col.hidden);
+    };
+
     CT.mergeLayoutIntoColumns = function (columns, layout) {
         const list = (columns || []).slice();
         list.forEach(function (col) {
             if (col && !col.hidden) {
-                col.userHidden = false;
+                col.userHidden = CT.columnDefaultUserHidden(col);
             }
         });
         const visible = CT.chooserColumns(list);

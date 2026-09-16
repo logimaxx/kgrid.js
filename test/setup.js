@@ -14,6 +14,7 @@ const SRC_ORDER = [
     "constants.js",
     "config.js",
     "dom.js",
+    "row-actions.js",
     "table-shell.js",
     "field-types.js",
     "field-types-builtins.js",

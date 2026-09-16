@@ -88,6 +88,53 @@ describe("column layout merge", () => {
         });
         expect(merged.map((c) => c.name)).toEqual(["name", "sku", "active"]);
     });
+
+    it("applies defaultHidden when no saved layout", () => {
+        const cols = [
+            column("name", { locked: true }),
+            column("sku"),
+            column("price", { defaultHidden: true }),
+        ].map((c) => KGrid.normalizeColumnConfig(c));
+        const merged = KGrid.mergeLayoutIntoColumns(cols, null);
+        expect(merged.find((c) => c.name === "price").userHidden).toBe(true);
+        expect(merged.find((c) => c.name === "sku").userHidden).toBe(false);
+        expect(merged.find((c) => c.name === "name").userHidden).toBe(false);
+    });
+
+    it("ignores defaultHidden on locked columns", () => {
+        const cols = [column("name", { locked: true, defaultHidden: true })].map((c) =>
+            KGrid.normalizeColumnConfig(c)
+        );
+        const merged = KGrid.mergeLayoutIntoColumns(cols, null);
+        expect(merged[0].userHidden).toBe(false);
+    });
+
+    it("saved layout overrides defaultHidden", () => {
+        const cols = [
+            column("name"),
+            column("price", { defaultHidden: true }),
+        ].map((c) => KGrid.normalizeColumnConfig(c));
+        const merged = KGrid.mergeLayoutIntoColumns(cols, {
+            v: 1,
+            columns: [
+                { name: "name", hidden: false },
+                { name: "price", hidden: false },
+            ],
+        });
+        expect(merged.find((c) => c.name === "price").userHidden).toBe(false);
+    });
+
+    it("new columns missing from saved layout keep defaultHidden", () => {
+        const cols = [
+            column("name"),
+            column("sku", { defaultHidden: true }),
+        ].map((c) => KGrid.normalizeColumnConfig(c));
+        const merged = KGrid.mergeLayoutIntoColumns(cols, {
+            v: 1,
+            columns: [{ name: "name", hidden: false }],
+        });
+        expect(merged.find((c) => c.name === "sku").userHidden).toBe(true);
+    });
 });
 
 describe("preferences persist", () => {
@@ -149,6 +196,37 @@ describe("preferences persist", () => {
         }).get();
         expect(labels).toEqual(["name", "id"]);
         expect(storage.get("kgrid:demo:layout").columns[0].name).toBe("name");
+    });
+
+    it("resetLayout restores defaultHidden", async () => {
+        const storage = memoryStorage();
+        const { $host } = mountTableHost();
+        mockKViews();
+        const grid = await initKGrid(
+            $host,
+            tableOptions({
+                storageKey: "demo",
+                preferencesStorage: storage,
+                columns: [
+                    column("id"),
+                    column("sku", { defaultHidden: true, label: "SKU" }),
+                ],
+            })
+        );
+        expect($host.find("th[data-name='sku']").hasClass("kgrid-user-hidden")).toBe(true);
+        grid.setLayout({
+            columns: [
+                { name: "id", hidden: false },
+                { name: "sku", hidden: false },
+            ],
+        });
+        expect($host.find("th[data-name='sku']").hasClass("kgrid-user-hidden")).toBe(false);
+        grid.resetLayout();
+        expect($host.find("th[data-name='sku']").hasClass("kgrid-user-hidden")).toBe(true);
+        expect(grid.getLayout().columns).toEqual([
+            { name: "id", hidden: false },
+            { name: "sku", hidden: true },
+        ]);
     });
 
     it("resetLayout restores schema order and clears storage", async () => {

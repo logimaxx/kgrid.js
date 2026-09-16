@@ -105,6 +105,14 @@
             }
             options.onClone = fn;
         }
+        CT.resolveRowActions(options, handlers);
+        {
+            const ra = options._resolvedRowActions;
+            CT.getTableInteractionHost($host).attr(
+                "data-has-row-menu",
+                ra && ra.menuItems && ra.menuItems.length ? "true" : "false"
+            );
+        }
         options.columns.forEach((col) => {
             ["insert", "update", "display"].forEach((mode) => {
                 const events = col[mode].events;

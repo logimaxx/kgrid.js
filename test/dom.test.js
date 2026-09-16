@@ -47,7 +47,7 @@ describe("dom helpers", () => {
         expect(KGrid.filterFormField(form, "missing").length).toBe(0);
     });
 
-    it("hasActionColumn is true when delete, update, create, or clone is enabled", () => {
+    it("hasActionColumn is true for features shim, rowActions, update, or create", () => {
         expect(
             KGrid.hasActionColumn({ features: { delete: true } })
         ).toBe(true);
@@ -59,6 +59,11 @@ describe("dom helpers", () => {
         ).toBe(true);
         expect(
             KGrid.hasActionColumn({ features: { clone: true } })
+        ).toBe(true);
+        expect(
+            KGrid.hasActionColumn({
+                rowActions: { items: [{ action: "delete" }] },
+            })
         ).toBe(true);
         expect(
             KGrid.hasActionColumn({
@@ -76,6 +81,15 @@ describe("dom helpers", () => {
         expect(
             KGrid.actionColumnWidth({
                 features: { delete: true, update: true, clone: true },
+            })
+        ).toBe("5.75rem");
+        expect(
+            KGrid.actionColumnWidth({
+                features: { update: true },
+                rowActions: {
+                    display: "dropdown",
+                    items: [{ action: "delete" }, { action: "clone" }],
+                },
             })
         ).toBe("5.75rem");
     });

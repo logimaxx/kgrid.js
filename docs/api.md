@@ -114,8 +114,10 @@ See **[table-shell.md](table-shell.md)** for structure, placeholders, and custom
 
 | Symbol | Description |
 |--------|-------------|
-| `KGrid.hasActionColumn(options)` | `true` when `features.delete`, `features.update`, `features.create`, or `features.clone` is enabled |
-| `KGrid.actionColumnWidth(options)` | Compact CSS width for the actions column under `table-layout: fixed` (from max button count) |
+| `KGrid.hasActionColumn(options)` | `true` when `features.create`, or resolved `rowActions` / shimmed delete·clone / `features.update` (save/cancel) |
+| `KGrid.actionColumnWidth(options)` | Compact CSS width for the actions column under `table-layout: fixed` |
+| `KGrid.resolveRowActions(options, handlers?)` | Normalize `rowActions` (or shim from features); caches on `options` |
+| `KGrid.renderRowActions($td, options, formId?)` | Fill a data-row actions cell (buttons or dropdown) |
 | `KGrid.syncActionColumnColgroup($table, dataColumnCount, hasActions, options?)` | Prepends `<colgroup>` so the actions column can collapse in view mode; sets actions col width from `actionColumnWidth` |
 
 Requires `styles/table.css` for view/edit visibility rules on `.kgrid-row-actions` and `col.kgrid-row-actions-col`.

@@ -106,8 +106,9 @@ const grid = await KGrid.init(document.getElementById("table-host"), {
 | `KGrid.init(host, opts)` | Empty host or existing `<table>`; returns grid API |
 | `KGrid.TABLE_SHELL_TEMPLATE` | Default table HTML (editable) |
 | `KGrid.hasActionColumn(opts)` | Whether a trailing row-actions column is rendered |
+| `opts.rowActions` | `{ display, items }` for delete/clone/custom; save/cancel from `features.update` |
 | `KGrid.registerFieldType(name, plugin)` | Custom filter/insert/update widgets |
-| `grid.setInteraction('view' \| 'edit')` | View (data only, full width) or edit (inputs + action buttons) |
+| `grid.setInteraction('view' \| 'edit')` | View or edit; menu actions can stay visible in view |
 | `grid.getLayout()` / `setLayout()` / `resetLayout()` | Column order and user-hidden columns |
 | `grid.instance` | KViews collection |
 | `grid.filterForm` | Programmatic filters |

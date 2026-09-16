@@ -137,4 +137,32 @@ describe("setupCell", () => {
         expect($table.find("input[name='on_flag']").prop("checked")).toBe(true);
         expect($table.find(".kgrid-flag-switch").length).toBe(2);
     });
+
+    it("insert default is stored as defaultValue so form.reset restores it", () => {
+        const { $table } = mountTableShell({
+            features: { create: true },
+            insertFormRow: { position: "top" },
+        });
+        const qtyCol = KGrid.normalizeColumnConfig(
+            column("qty", {
+                features: { create: true },
+                insert: { type: "number", default: 1, events: [] },
+            })
+        );
+        KGrid.setupNewRecordForm(
+            $table,
+            {
+                columns: [qtyCol],
+                features: { create: true },
+                insertFormRow: { position: "top" },
+            },
+            { instance: { newItem: () => Promise.resolve() } }
+        );
+        const $qty = $table.find("input[name='qty']");
+        expect($qty.val()).toBe("1");
+        expect($qty.prop("defaultValue")).toBe("1");
+        $qty.val("5");
+        $table.find("form.table-row-form")[0].reset();
+        expect($qty.val()).toBe("1");
+    });
 });

@@ -37,8 +37,11 @@
             paging: true,
             create: true,
             update: true,
-            delete: true,
             columnChooser: true,
+        },
+        rowActions: {
+            display: "buttons",
+            items: [{ action: "delete" }],
         },
         storageKey: "demo.products",
         noDataTemplate:
@@ -78,10 +81,9 @@
                 features: { sort: true, filter: true, create: true, update: true },
                 display: { template: "{{category}}", events: [] },
                 filter: {
-                    type: "demo_select",
-                    operator: "=",
+                    type: "multi_select",
+                    placeholder: "All categories",
                     options: [
-                        { label: "All", value: "" },
                         { label: "Hardware", value: "hardware" },
                         { label: "Software", value: "software" },
                         { label: "Accessories", value: "accessories" },

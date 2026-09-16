@@ -86,8 +86,12 @@
             });
         }
 
-        if(options.features.clone) {
-            view.el.find("button.clone-item").off("click").on("click",(event)=>{
+        const ra = CT.resolveRowActions(options);
+        const hasClone = ra.menuItems.some((it) => it.action === "clone");
+        const hasDelete = ra.menuItems.some((it) => it.action === "delete");
+
+        if (hasClone) {
+            view.el.find(".clone-item").off("click").on("click", (event) => {
                 event.preventDefault();
                 if (typeof options.onClone === "function") {
                     options.onClone(item, view, event);
@@ -95,8 +99,8 @@
             });
         }
 
-        if(options.features.delete) {
-            view.el.find("button.delete-item").off("click").on("click",(event)=>{
+        if (hasDelete) {
+            view.el.find(".delete-item").off("click").on("click", (event) => {
                 event.preventDefault();
                 view.el.addClass("confirm-delete");
                 const clearConfirmState = () => view.el.removeClass("confirm-delete");
@@ -108,6 +112,27 @@
                     clearConfirmState
                 );
             });
+        }
+
+        const customById = new Map();
+        ra.menuItems.forEach((it) => {
+            if (it.id && typeof it.callback === "function") {
+                customById.set(it.id, it.callback);
+            }
+        });
+        if (customById.size) {
+            view.el
+                .find("[data-kgrid-action]")
+                .off("click.kgridAction")
+                .on("click.kgridAction", (event) => {
+                    const id = event.currentTarget.getAttribute("data-kgrid-action");
+                    const cb = customById.get(id);
+                    if (!cb) {
+                        return;
+                    }
+                    event.preventDefault();
+                    cb(event, item, view);
+                });
         }
 
         if (typeof options.onRowFields === "function") {

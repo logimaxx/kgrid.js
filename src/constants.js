@@ -12,10 +12,17 @@
             "paging": false,
             "create": false,
             "update": false,
+            /** @deprecated use rowActions items [{ action: "delete" }] */
             "delete": false,
+            /** @deprecated use rowActions items [{ action: "clone" }] */
             "clone": false,
             "columnChooser": false
         },
+        /**
+         * Row action chrome: { display: "buttons"|"dropdown", items: [...] }.
+         * Built-ins: delete, clone. Save/cancel come from features.update.
+         */
+        rowActions: null,
         /** Persist key for layout (and filters). Required for localStorage. */
         storageKey: null,
         /** Extra suffix for saved filters only (e.g. company id). Layout ignores this. */
@@ -50,6 +57,11 @@
         hidden: false,
         /** When true, column chooser cannot hide this column (still reorderable). */
         locked: false,
+        /**
+         * Schema: start user-hidden (collapsed) until the user shows it in the chooser.
+         * Unlike `hidden`, the column stays in the chooser / DOM. Ignored when `locked`.
+         */
+        defaultHidden: false,
         /** Runtime: user hid this column via chooser. Not a schema flag. */
         userHidden: false,
         /** CSS class(es) on header/filter/data/insert cells (alias: columnClass) */

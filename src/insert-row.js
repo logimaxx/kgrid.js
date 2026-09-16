@@ -36,7 +36,7 @@
                 grid.instance.newItem(data).then(()=>{
                     event.target.reset();
                     if(typeof options.onNewItemCreated=="function") {
-                        options.onNewItemCreated(data);
+                        options.onNewItemCreated(data, event.target);
                     }
                 }).catch(CT.onError);
             });
@@ -112,10 +112,14 @@
                 ? insertConfig.default.value
                 : insertConfig.default;
             if (insertType === "checkbox") {
-                input.prop("checked", CT.isFlagOn(rawDefault));
+                const on = CT.isFlagOn(rawDefault);
+                input.prop("checked", on).prop("defaultChecked", on);
             } else if(insertConfig.default != null && insertConfig.default !== "" && !input.val()) {
                 if(String(rawDefault).trim()) {
                     input.val(rawDefault).trigger("change");
+                    if (input[0] && "defaultValue" in input[0]) {
+                        input[0].defaultValue = input[0].value;
+                    }
                 }
             }
 

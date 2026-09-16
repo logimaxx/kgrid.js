@@ -175,20 +175,44 @@ Column flags:
 | Field | Meaning |
 |-------|---------|
 | `hidden: true` | Schema — omitted from UI and chooser (e.g. internal `id`) |
+| `defaultHidden: true` | Start collapsed (`userHidden`); still in the chooser so users can show it. Ignored when `locked`. Reset columns restores this default. |
 | `locked: true` | Visible; chooser cannot hide it (still reorderable). Use on required list fields such as name. |
 | `userHidden` | Runtime only — set via chooser / `setLayout` |
 
-User-hidden columns use `visibility: collapse` so insert/update/filter controls stay in the DOM. Filter values on hidden columns remain until Reset.
+User-hidden columns use `visibility: collapse` (not `display: none`) so insert/update/filter controls stay in the DOM and `table-layout: fixed` redistributes width to the remaining columns. Host CSS that forces `display: none` on `.kgrid-user-hidden` leaves gaps. Filter values on hidden columns remain until Reset.
 
 `filter.persist` still means “keep `filter.default` on form reset” — it is not reload persistence. Reload persistence is `storageKey`.
 
 ### Row actions column
 
-When any of `create`, `update`, `delete`, or `clone` is enabled, KGrid adds a trailing column for row controls (clone, delete, save/cancel, insert submit). The same rule is used everywhere so header, filter row, data rows, and `colspan` stay aligned:
+Prefer declarative **`rowActions`** for delete / clone / custom menu actions. `features.update` still enables inline edit and **automatically** adds Save / Cancel buttons. `features.create` still owns the insert-row submit cell.
+
+```javascript
+rowActions: {
+  display: "buttons", // or "dropdown"
+  items: [
+    { action: "clone" },
+    { action: "delete", title: "Șterge" },
+    { id: "open", label: "Open", icon: "fas fa-external-link-alt", callback: "onOpen" },
+  ],
+},
+features: { update: true, create: true }, // save/cancel injected; insert row unchanged
+onClone: "cloneRow",
+```
+
+| Built-in `action` | Default icon | Shown | Behavior |
+|-------------------|--------------|-------|----------|
+| `clone` | `fa-regular fa-copy` | idle | `onClone(item, view, event)` |
+| `delete` | `fas fa-trash` | idle | `deleteConfirm` then `item.delete()` |
+| `save` / `cancel` | save / undo | editing | **Not listed in `items`** — added when `features.update` |
+
+`display: "dropdown"` puts idle/menu items in a Bootstrap kebab menu; Save / Cancel stay as separate buttons.
+
+**Deprecated:** `features.delete` / `features.clone` still work (shim into `rowActions`) when `rowActions` is omitted. If both are set, `rowActions` wins and KGrid warns.
 
 ```javascript
 KGrid.hasActionColumn(options)
-// true when features.delete || features.update || features.create || features.clone
+// true when create, or any resolved menu/editing action exists
 ```
 
 | Markup | Role |
@@ -196,13 +220,13 @@ KGrid.hasActionColumn(options)
 | `th` / `td.kgrid-row-actions` | Header, filters, data rows |
 | `colgroup col.kgrid-row-actions-col` | Width control for `table-layout: fixed` (added at init via `syncActionColumnColgroup`) |
 
-**View vs edit:** In **view** mode (`data-interaction="view"`), the row-actions column is collapsed (`visibility: collapse`, zero width) so data columns use the full table width. In **edit** mode, the column uses a compact width from `KGrid.actionColumnWidth(options)` (based on how many buttons can show) with clone / delete / save / cancel buttons and the insert-row submit cell.
+**View vs edit:** In **view** mode, the row-actions column collapses **unless** there are idle menu actions (`rowActions.items` / shimmed delete·clone) — then the column stays visible so list screens can delete/clone without entering edit. Save / Cancel still only appear while a row is `.editing`. In **edit** mode, width comes from `KGrid.actionColumnWidth(options)`.
 
-`features.clone` (default `false`) adds a clone button. Host must supply `onClone(item, view, event)` — a function, or a string name resolved from `handlers` / `functions` (same as column event callbacks). KGrid does not clone records itself.
+Do not use a fake data column named `actions` with HTML button templates — use `rowActions` + `handlers` instead.
+
+Host must supply `onClone` when clone is configured. Override delete UX: `deleteConfirm` (see [integration.md](integration.md#deleteconfirm-row-delete)).
 
 The new-record row (`.new-record-row`) uses the same `kgrid-row-actions` class on its submit cell; the whole insert row is hidden in view mode via existing CSS.
-
-Override delete UX per table: `deleteConfirm` (see below and [integration.md](integration.md#deleteconfirm-row-delete)).
 
 ### Interaction mode
 
@@ -218,7 +242,7 @@ CSS on `.custom-table-shell`: `data-interaction="view|edit"`. Optional overrides
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `insertFormRow.position` | `'top' \| 'bottom'` | `'top'` | New-record row position |
-| `onNewItemCreated` | `function(data)` | — | After successful insert |
+| `onNewItemCreated` | `function(data, form)` | — | After successful insert (form already reset) |
 | `onInsertRowReady` | `function(form, row)` | — | After insert row DOM is built |
 | `onRowFields` | `function(item, view, table)` | — | After each data row render / field mount |
 | `deleteConfirm` | `(context, onConfirm, onCancel?) => void` | — | Row delete UX for this table; overrides `KGrid.configure({ deleteConfirm })` |
@@ -311,10 +335,11 @@ Check types with `KGrid.isValidInputType(type)`.
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `type` | `string` | `text` | Control type |
-| `operator` | `string` | `~=~` | `data-operator` for KViews (`~=~`, `=`, …) |
-| `default` | `any` | | Initial value |
-| `placeholder` | `string` | `""` | |
+| `operator` | `string` | `~=~` (`><` for `multi_select`) | `data-operator` for KViews (`~=~`, `=`, `><`, …) |
+| `default` | `any` | | Initial value (`string` / `string[]` for `multi_select`) |
+| `placeholder` | `string` | `""` (`"All"` for empty `multi_select`) | Toggle label when nothing selected (`multi_select`) |
 | `options` | `array` \| `object` | | For `select`, `multi_select`, `select2`, … |
+| `separator` | `string` | `";"` | Only `multi_select`: join selected values |
 | `persist` | `boolean` | `false` | Re-apply `default` on filter reset (also implied when column `hidden` or `type: "hidden"`) |
 | `debounceMs` | `number` | `configure({ filterDebounceMs })` | Ms to wait after typing before filter API call; `0` = immediate |
 
@@ -329,7 +354,7 @@ Filter controls use `form=""` pointing at a hidden `<form>` (rows cannot wrap on
 | Type | Context | Notes |
 |------|---------|--------|
 | Native HTML | filter, insert, update | `text`, `number`, `select`, … |
-| `multi_select` | filter | Built-in |
+| `multi_select` | filter (also insert/update) | Checkbox list; values `a;b` with operator `><` |
 | `date_range` | filter | Built-in single date input |
 | `select2` | filter, insert, update | `customInputTypes: { select2: KGrid.select2(fn) }` + `kgrid-widgets.js` |
 | `autosuggest` | filter, insert, update | `customInputTypes: { autosuggest: KGrid.autosuggest(fn) }` + `kgrid-widgets.js` |

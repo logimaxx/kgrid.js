@@ -81,7 +81,36 @@ KGrid.configure({
 
 ## Native HTML & built-ins
 
-See previous sections in this file for `select`, `multi_select`, `date_range`. Native types need no registration.
+Native HTML types (`text`, `select`, …) and DOM built-ins (`multi_select`, `date_range`) need no `customInputTypes` registration.
+
+### `multi_select` — checkbox list (IN filter)
+
+Friendly multi-value control: a compact toggle in the filter row opens a panel of checkboxes (insert/update show the list inline). Values are stored as a **semicolon-joined** string on a hidden input.
+
+| Concern | Default |
+|---------|---------|
+| Operator | `><` (dbAPI IN) when `filter.operator` omitted |
+| Value encoding | `a;b;c` (`filter.separator` overrides, default `";"`) |
+| Empty | no filter (same as clearing all checkboxes) |
+| Label | `filter.placeholder` or `"All"` when nothing selected |
+
+```javascript
+{
+  name: "state",
+  filter: {
+    type: "multi_select",
+    // operator defaults to "><"
+    options: [
+      { label: "Draft", value: "DRAFT" },
+      { label: "Picked", value: "PICKED" },
+      { label: "Shipped", value: "SHIPPED" },
+    ],
+    default: ["DRAFT", "PICKED"], // or "DRAFT;PICKED"
+  },
+}
+```
+
+Produces filter expressions like `state><DRAFT;PICKED`.
 
 ### `checkbox` — boolean flag toggle
 

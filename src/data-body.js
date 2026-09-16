@@ -31,39 +31,7 @@
 
         if (CT.hasActionColumn(options)) {
             const buttonColumn = $("<td>").addClass("kgrid-row-actions").appendTo(dataRow);
-            if(options.features.clone) {
-                $("<div>").addClass("btn-group clone-item-grp").appendTo(buttonColumn).append(
-                    $("<button>").addClass("btn btn-sm btn-outline-secondary clone-item")
-                        .attr("type","button")
-                        .attr("title","Clone item")
-                        .append("<i class='fa-regular fa-copy'></i>"));
-            }
-            if(options.features.delete) {
-                $("<div>").addClass("btn-group delete-item-grp").appendTo(buttonColumn).append(
-                    $("<button>").addClass("btn btn-sm btn-danger delete-item")
-                        .attr("type","button")
-                        .attr("title","Delete item")
-                        .append("<i class='fas fa-trash'></i>"));
-            }
-
-            if(options.features.update) {
-                const grp = $("<div>").addClass("btn-group edit-item-grp").appendTo(buttonColumn);
-                $("<button>").addClass("btn btn-sm btn-success save-item")
-                    .attr("type","submit")
-                    .attr("name","save")
-                    .attr("title","Save item")
-                    .attr("form",dataRowFormId)
-                    .html("<i class='fas fa-save'></i>")
-                    .appendTo(grp);
-                $("<button>").addClass("btn btn-sm btn-secondary cancel-edit")
-                    .attr("type","button")
-                    .attr("name","cancel")
-                    .attr("title","Cancel edit")
-                    .attr("form",dataRowFormId)
-                    .attr("onclick","$(this).parents('[data-type=item]').data().instance.loadFromRemote()")
-                    .html("<i class='fas fa-undo'></i>")
-                    .appendTo(grp);
-            }
+            CT.renderRowActions(buttonColumn, options, dataRowFormId);
         }
         if (editForm) {
             CT.anchorRowForm(editForm, dataRow);

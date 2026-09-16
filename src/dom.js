@@ -31,35 +31,6 @@
     };
 
     /**
-     * Whether the table needs a trailing row-actions column (header, filters, data rows, colspan).
-     * @param {Object} options table options with features
-     * @returns {boolean}
-     */
-    CT.hasActionColumn = function (options) {
-        const f = options && options.features;
-        if (!f) {
-            return false;
-        }
-        return !!(f.delete || f.update || f.create || f.clone);
-    };
-
-    /**
-     * Compact width for the row-actions column under table-layout:fixed
-     * (fixed layout ignores content; 1% caused overflow). Sized from max buttons
-     * shown in any mode (idle clone/delete vs editing save/cancel).
-     * @param {Object} [options]
-     * @returns {string} CSS width
-     */
-    CT.actionColumnWidth = function (options) {
-        const f = (options && options.features) || {};
-        const idle = (f.clone ? 1 : 0) + (f.delete ? 1 : 0);
-        const editing = f.update ? 2 : 0;
-        const insert = f.create ? 1 : 0;
-        const n = Math.max(idle, editing, insert, 1);
-        return (2.5 * n + 0.75).toFixed(2) + "rem";
-    };
-
-    /**
      * Sync <colgroup> so row-actions width can collapse in view (table-layout: fixed).
      * @param {JQuery} $table
      * @param {number} dataColumnCount visible data columns (no row-actions)
