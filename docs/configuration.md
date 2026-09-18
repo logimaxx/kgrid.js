@@ -179,7 +179,7 @@ Column flags:
 | `locked: true` | Visible; chooser cannot hide it (still reorderable). Use on required list fields such as name. |
 | `userHidden` | Runtime only — set via chooser / `setLayout` |
 
-User-hidden columns use `visibility: collapse` (not `display: none`) so insert/update/filter controls stay in the DOM and `table-layout: fixed` redistributes width to the remaining columns. Host CSS that forces `display: none` on `.kgrid-user-hidden` leaves gaps. Filter values on hidden columns remain until Reset.
+User-hidden columns use **`display: none`** on cells and are **omitted from `<colgroup>`**. `table-layout: fixed` maps each participating cell to the next `<col>`; a leftover zero-width col remaps every following column (letter-stacked headers, blank gaps). Chrome also treats `visibility: collapse` as `hidden`, so that is not a substitute. Filter/insert/update controls stay in the DOM. Filter values on hidden columns remain until Reset.
 
 `filter.persist` still means “keep `filter.default` on form reset” — it is not reload persistence. Reload persistence is `storageKey`.
 
@@ -206,7 +206,7 @@ onClone: "cloneRow",
 | `delete` | `fas fa-trash` | idle | `deleteConfirm` then `item.delete()` |
 | `save` / `cancel` | save / undo | editing | **Not listed in `items`** — added when `features.update` |
 
-`display: "dropdown"` puts idle/menu items in a Bootstrap kebab menu; Save / Cancel stay as separate buttons.
+`display: "dropdown"` puts idle/menu items in a kebab (Bootstrap classes `.dropdown-toggle` / `.dropdown-menu`). KGrid opens and closes the menu itself (`position: fixed` while open, so the table does not clip it). Click outside or Escape closes it. **`bootstrap.Dropdown` / Popper is not used** and must not be initialized on these toggles — it fights the click handlers. Save / Cancel stay as separate buttons.
 
 **Deprecated:** `features.delete` / `features.clone` still work (shim into `rowActions`) when `rowActions` is omitted. If both are set, `rowActions` wins and KGrid warns.
 

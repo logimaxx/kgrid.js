@@ -4,6 +4,9 @@
      */
     CT.setupEvents = function (item, table, options, colMap) {
         const view = item.views[0];
+        if (view && view.el && typeof CT.applyLayoutToRow === "function") {
+            CT.applyLayoutToRow(view.el, options.columns);
+        }
 
         options.columns.forEach(col=>{
             col.display.events.forEach(event=>{

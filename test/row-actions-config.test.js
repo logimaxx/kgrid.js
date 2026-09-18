@@ -100,6 +100,13 @@ describe("renderRowActions", () => {
         expect($toggle.length).toBe(1);
         expect($toggle.attr("data-bs-toggle")).toBeUndefined();
         expect($toggle.attr("data-bs-popper-config")).toBeUndefined();
+
+        KGrid.mountRowActionDropdowns($table.find(".main-tbody"));
+        $toggle.trigger("click");
+        expect($actions.find(".dropdown-menu").hasClass("show")).toBe(true);
+        expect($actions.find(".dropdown-menu").css("position")).toBe("fixed");
+        $(document).trigger("click");
+        expect($actions.find(".dropdown-menu").hasClass("show")).toBe(false);
     });
 
     it("renders custom action button with data-kgrid-action", () => {

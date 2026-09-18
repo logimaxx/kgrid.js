@@ -16,9 +16,7 @@
             }
 
             let cell = labelTemplate.clone(true);
-            if (col.attrs && typeof col.attrs === "object") {
-                Object.keys(col.attrs).forEach((attr) => cell.attr(attr, col.attrs[attr]));
-            }
+            CT.applyColumnDomAttrs(cell, col);
             CT.applyColumnCellMeta(cell, col);
 
             if (!col.features?.sort) {

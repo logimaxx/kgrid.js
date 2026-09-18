@@ -213,39 +213,70 @@
         return (2.5 * n + 0.75).toFixed(2) + "rem";
     };
 
-    CT.getBootstrapDropdown = function () {
-        const bs =
-            (typeof bootstrap !== "undefined" && bootstrap) ||
-            (typeof window !== "undefined" && window.bootstrap) ||
-            null;
-        return bs && bs.Dropdown ? bs.Dropdown : null;
+    CT.closeRowActionDropdowns = function ($exceptMenu) {
+        $(".kgrid-row-actions-menu").each(function () {
+            const $wrap = $(this);
+            const $menu = $wrap.children(".dropdown-menu");
+            if ($exceptMenu && $menu[0] === $exceptMenu[0]) {
+                return;
+            }
+            $menu.removeClass("show").css({ top: "", left: "", right: "", position: "" });
+            $wrap.children(".kgrid-actions-dropdown-toggle").attr("aria-expanded", "false").removeClass("show");
+        });
     };
 
     /**
-     * Init Bootstrap dropdowns with fixed Popper strategy (avoids table clipping / click-through).
-     * Do not use data-bs-popper-config — Bootstrap may treat the attribute as a raw string.
+     * Wire row-action kebab menus. Uses a small jQuery toggle (not Bootstrap Dropdown)
+     * so we do not depend on data-api / popperConfig quirks; menu is position:fixed while open.
      * @param {JQuery} $root
      */
     CT.mountRowActionDropdowns = function ($root) {
         if (!$root || !$root.length) {
             return;
         }
-        const Dropdown = CT.getBootstrapDropdown();
-        if (!Dropdown) {
-            return;
+        if (!CT._rowActionsDropdownDocBound) {
+            CT._rowActionsDropdownDocBound = true;
+            $(document)
+                .on("click.kgridRowActions", function () {
+                    CT.closeRowActionDropdowns();
+                })
+                .on("keydown.kgridRowActions", function (e) {
+                    if (e.key === "Escape") {
+                        CT.closeRowActionDropdowns();
+                    }
+                });
         }
         $root.find(".kgrid-row-actions-menu > .kgrid-actions-dropdown-toggle").each(function () {
-            const el = this;
-            const prev = Dropdown.getInstance(el);
-            if (prev) {
-                prev.dispose();
-            }
-            new Dropdown(el, {
-                popperConfig: function (defaultConfig) {
-                    const next = defaultConfig && typeof defaultConfig === "object" ? { ...defaultConfig } : {};
-                    next.strategy = "fixed";
-                    return next;
-                },
+            const toggle = this;
+            const $toggle = $(toggle);
+            const $wrap = $toggle.parent(".kgrid-row-actions-menu");
+            const $menu = $wrap.children(".dropdown-menu");
+            $toggle.off("click.kgridRowActions").on("click.kgridRowActions", function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                const willOpen = !$menu.hasClass("show");
+                CT.closeRowActionDropdowns();
+                if (!willOpen) {
+                    return;
+                }
+                const rect = toggle.getBoundingClientRect();
+                $menu.addClass("show").css({
+                    position: "fixed",
+                    top: Math.round(rect.bottom + 2) + "px",
+                    left: "auto",
+                    right: Math.round(window.innerWidth - rect.right) + "px",
+                    zIndex: 1055,
+                });
+                $toggle.addClass("show").attr("aria-expanded", "true");
+            });
+            $menu.off("click.kgridRowActions").on("click.kgridRowActions", function (event) {
+                event.stopPropagation();
+            });
+            $menu.find(".dropdown-item").off("click.kgridRowActionsClose").on("click.kgridRowActionsClose", function () {
+                // Close after the action click handlers (same tick is fine).
+                setTimeout(function () {
+                    CT.closeRowActionDropdowns();
+                }, 0);
             });
         });
     };

@@ -164,14 +164,14 @@
         const labelsRow = CT.setupLabelsHeader(table.find(".thead-labels"), options);
 
         const hasActionColumn = CT.hasActionColumn(options);
-        const visibleColumnsCount = labelsRow.find("th").length;
-        const dataColumnCount = visibleColumnsCount - (hasActionColumn ? 1 : 0);
+        const layoutCols = CT.layoutVisibleColumns(options.columns);
+        const visibleColumnsCount = CT.participatingColumnCount(options.columns, hasActionColumn);
         CT.syncActionColumnColgroup(
             table,
-            dataColumnCount,
+            layoutCols.length,
             hasActionColumn,
             options,
-            CT.chooserColumns(options.columns)
+            layoutCols
         );
 
         const filterForm = options.filterForm ?? CT.setupFilterHeader(table, options);

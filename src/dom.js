@@ -30,12 +30,61 @@
         return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
     };
 
+    /** CSS width for a visible column from `attrs.width` (px if numeric). */
+    CT.columnWidthCss = function (col) {
+        if (!col || !col.attrs) {
+            return null;
+        }
+        const w = col.attrs.width;
+        if (w == null || w === "") {
+            return null;
+        }
+        if (typeof w === "number" || /^\d+(\.\d+)?$/.test(String(w))) {
+            return String(w) + "px";
+        }
+        return String(w);
+    };
+
+    /** Copy `col.attrs` onto a cell, except layout `width` (that belongs on `<col>`). */
+    CT.applyColumnDomAttrs = function ($el, col) {
+        const attrs = col && col.attrs && typeof col.attrs === "object" ? col.attrs : null;
+        if (!attrs) {
+            return $el;
+        }
+        Object.keys(attrs).forEach(function (attr) {
+            if (attr === "width") {
+                return;
+            }
+            $el.attr(attr, attrs[attr]);
+        });
+        return $el;
+    };
+
     /**
-     * Sync <colgroup> so row-actions width can collapse in view (table-layout: fixed).
+     * Columns that occupy a table-layout slot (named, not schema-hidden, not user-hidden).
+     * `display:none` cells do not participate, so colgroup must list only these.
+     */
+    CT.layoutVisibleColumns = function (columns) {
+        return (columns || []).filter(function (col) {
+            return col && col.name && !col.hidden && !col.userHidden;
+        });
+    };
+
+    /** Header/body/footer participating column count (visible data + optional actions). */
+    CT.participatingColumnCount = function (columns, hasActions) {
+        return CT.layoutVisibleColumns(columns).length + (hasActions ? 1 : 0);
+    };
+
+    /**
+     * Sync <colgroup> for `table-layout: fixed`.
+     * One `<col>` per participating data column, then optional row-actions.
+     * Never emit a col for user-hidden fields: `display:none` cells skip a slot,
+     * so a leftover col (even width 0) remaps every following cell onto the wrong width.
      * @param {JQuery} $table
-     * @param {number} dataColumnCount visible data columns (no row-actions)
+     * @param {number} dataColumnCount participating data columns (no row-actions)
      * @param {boolean} hasActions
      * @param {Object} [options] table options (for action column width)
+     * @param {Array} [layoutColumns] column objects in display order; userHidden entries are skipped
      */
     CT.syncActionColumnColgroup = function ($table, dataColumnCount, hasActions, options, layoutColumns) {
         let $colgroup = $table.children("colgroup.kgrid-colgroup");
@@ -44,20 +93,27 @@
         }
         $colgroup.empty();
         const named = Array.isArray(layoutColumns) ? layoutColumns : null;
+        let emitted = 0;
         if (named && named.length) {
             named.forEach(function (col) {
+                if (col && col.userHidden) {
+                    return;
+                }
                 const $col = $("<col>");
                 if (col && col.name) {
                     $col.attr("data-name", col.name);
                 }
-                if (col && col.userHidden) {
-                    $col.addClass("kgrid-user-hidden");
+                const cssW = CT.columnWidthCss(col);
+                if (cssW) {
+                    $col.css("width", cssW);
                 }
                 $colgroup.append($col);
+                emitted += 1;
             });
         } else {
             for (let i = 0; i < dataColumnCount; i++) {
                 $colgroup.append($("<col>"));
+                emitted += 1;
             }
         }
         if (hasActions) {
@@ -67,6 +123,14 @@
                     .css("width", CT.actionColumnWidth(options))
             );
         }
+        return emitted;
+    };
+
+    CT.syncSpanningCells = function ($table, span) {
+        if (!$table || !$table.length || !span) {
+            return;
+        }
+        $table.find(".paging-footer td, .no-data-tbody td").attr("colspan", span);
     };
 
     /**

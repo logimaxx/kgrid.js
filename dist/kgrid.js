@@ -1,4 +1,4 @@
-/*! @logimaxx/kgrid | (c) Logimaxx System SRL — proprietary | https://logimaxx.ro | built 2026-09-16T18:50:44.259Z */
+/*! @logimaxx/kgrid | (c) Logimaxx System SRL — proprietary | https://logimaxx.ro | built 2026-09-18T05:40:37.470Z */
 
 /* --- configure.js --- */
 /**
@@ -425,12 +425,61 @@
         return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
     };
 
+    /** CSS width for a visible column from `attrs.width` (px if numeric). */
+    CT.columnWidthCss = function (col) {
+        if (!col || !col.attrs) {
+            return null;
+        }
+        const w = col.attrs.width;
+        if (w == null || w === "") {
+            return null;
+        }
+        if (typeof w === "number" || /^\d+(\.\d+)?$/.test(String(w))) {
+            return String(w) + "px";
+        }
+        return String(w);
+    };
+
+    /** Copy `col.attrs` onto a cell, except layout `width` (that belongs on `<col>`). */
+    CT.applyColumnDomAttrs = function ($el, col) {
+        const attrs = col && col.attrs && typeof col.attrs === "object" ? col.attrs : null;
+        if (!attrs) {
+            return $el;
+        }
+        Object.keys(attrs).forEach(function (attr) {
+            if (attr === "width") {
+                return;
+            }
+            $el.attr(attr, attrs[attr]);
+        });
+        return $el;
+    };
+
     /**
-     * Sync <colgroup> so row-actions width can collapse in view (table-layout: fixed).
+     * Columns that occupy a table-layout slot (named, not schema-hidden, not user-hidden).
+     * `display:none` cells do not participate, so colgroup must list only these.
+     */
+    CT.layoutVisibleColumns = function (columns) {
+        return (columns || []).filter(function (col) {
+            return col && col.name && !col.hidden && !col.userHidden;
+        });
+    };
+
+    /** Header/body/footer participating column count (visible data + optional actions). */
+    CT.participatingColumnCount = function (columns, hasActions) {
+        return CT.layoutVisibleColumns(columns).length + (hasActions ? 1 : 0);
+    };
+
+    /**
+     * Sync <colgroup> for `table-layout: fixed`.
+     * One `<col>` per participating data column, then optional row-actions.
+     * Never emit a col for user-hidden fields: `display:none` cells skip a slot,
+     * so a leftover col (even width 0) remaps every following cell onto the wrong width.
      * @param {JQuery} $table
-     * @param {number} dataColumnCount visible data columns (no row-actions)
+     * @param {number} dataColumnCount participating data columns (no row-actions)
      * @param {boolean} hasActions
      * @param {Object} [options] table options (for action column width)
+     * @param {Array} [layoutColumns] column objects in display order; userHidden entries are skipped
      */
     CT.syncActionColumnColgroup = function ($table, dataColumnCount, hasActions, options, layoutColumns) {
         let $colgroup = $table.children("colgroup.kgrid-colgroup");
@@ -439,20 +488,27 @@
         }
         $colgroup.empty();
         const named = Array.isArray(layoutColumns) ? layoutColumns : null;
+        let emitted = 0;
         if (named && named.length) {
             named.forEach(function (col) {
+                if (col && col.userHidden) {
+                    return;
+                }
                 const $col = $("<col>");
                 if (col && col.name) {
                     $col.attr("data-name", col.name);
                 }
-                if (col && col.userHidden) {
-                    $col.addClass("kgrid-user-hidden");
+                const cssW = CT.columnWidthCss(col);
+                if (cssW) {
+                    $col.css("width", cssW);
                 }
                 $colgroup.append($col);
+                emitted += 1;
             });
         } else {
             for (let i = 0; i < dataColumnCount; i++) {
                 $colgroup.append($("<col>"));
+                emitted += 1;
             }
         }
         if (hasActions) {
@@ -462,6 +518,14 @@
                     .css("width", CT.actionColumnWidth(options))
             );
         }
+        return emitted;
+    };
+
+    CT.syncSpanningCells = function ($table, span) {
+        if (!$table || !$table.length || !span) {
+            return;
+        }
+        $table.find(".paging-footer td, .no-data-tbody td").attr("colspan", span);
     };
 
     /**
@@ -741,39 +805,70 @@
         return (2.5 * n + 0.75).toFixed(2) + "rem";
     };
 
-    CT.getBootstrapDropdown = function () {
-        const bs =
-            (typeof bootstrap !== "undefined" && bootstrap) ||
-            (typeof window !== "undefined" && window.bootstrap) ||
-            null;
-        return bs && bs.Dropdown ? bs.Dropdown : null;
+    CT.closeRowActionDropdowns = function ($exceptMenu) {
+        $(".kgrid-row-actions-menu").each(function () {
+            const $wrap = $(this);
+            const $menu = $wrap.children(".dropdown-menu");
+            if ($exceptMenu && $menu[0] === $exceptMenu[0]) {
+                return;
+            }
+            $menu.removeClass("show").css({ top: "", left: "", right: "", position: "" });
+            $wrap.children(".kgrid-actions-dropdown-toggle").attr("aria-expanded", "false").removeClass("show");
+        });
     };
 
     /**
-     * Init Bootstrap dropdowns with fixed Popper strategy (avoids table clipping / click-through).
-     * Do not use data-bs-popper-config — Bootstrap may treat the attribute as a raw string.
+     * Wire row-action kebab menus. Uses a small jQuery toggle (not Bootstrap Dropdown)
+     * so we do not depend on data-api / popperConfig quirks; menu is position:fixed while open.
      * @param {JQuery} $root
      */
     CT.mountRowActionDropdowns = function ($root) {
         if (!$root || !$root.length) {
             return;
         }
-        const Dropdown = CT.getBootstrapDropdown();
-        if (!Dropdown) {
-            return;
+        if (!CT._rowActionsDropdownDocBound) {
+            CT._rowActionsDropdownDocBound = true;
+            $(document)
+                .on("click.kgridRowActions", function () {
+                    CT.closeRowActionDropdowns();
+                })
+                .on("keydown.kgridRowActions", function (e) {
+                    if (e.key === "Escape") {
+                        CT.closeRowActionDropdowns();
+                    }
+                });
         }
         $root.find(".kgrid-row-actions-menu > .kgrid-actions-dropdown-toggle").each(function () {
-            const el = this;
-            const prev = Dropdown.getInstance(el);
-            if (prev) {
-                prev.dispose();
-            }
-            new Dropdown(el, {
-                popperConfig: function (defaultConfig) {
-                    const next = defaultConfig && typeof defaultConfig === "object" ? { ...defaultConfig } : {};
-                    next.strategy = "fixed";
-                    return next;
-                },
+            const toggle = this;
+            const $toggle = $(toggle);
+            const $wrap = $toggle.parent(".kgrid-row-actions-menu");
+            const $menu = $wrap.children(".dropdown-menu");
+            $toggle.off("click.kgridRowActions").on("click.kgridRowActions", function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                const willOpen = !$menu.hasClass("show");
+                CT.closeRowActionDropdowns();
+                if (!willOpen) {
+                    return;
+                }
+                const rect = toggle.getBoundingClientRect();
+                $menu.addClass("show").css({
+                    position: "fixed",
+                    top: Math.round(rect.bottom + 2) + "px",
+                    left: "auto",
+                    right: Math.round(window.innerWidth - rect.right) + "px",
+                    zIndex: 1055,
+                });
+                $toggle.addClass("show").attr("aria-expanded", "true");
+            });
+            $menu.off("click.kgridRowActions").on("click.kgridRowActions", function (event) {
+                event.stopPropagation();
+            });
+            $menu.find(".dropdown-item").off("click.kgridRowActionsClose").on("click.kgridRowActionsClose", function () {
+                // Close after the action click handlers (same tick is fine).
+                setTimeout(function () {
+                    CT.closeRowActionDropdowns();
+                }, 0);
             });
         });
     };
@@ -1692,9 +1787,7 @@
             }
 
             let cell = labelTemplate.clone(true);
-            if (col.attrs && typeof col.attrs === "object") {
-                Object.keys(col.attrs).forEach((attr) => cell.attr(attr, col.attrs[attr]));
-            }
+            CT.applyColumnDomAttrs(cell, col);
             CT.applyColumnCellMeta(cell, col);
 
             if (!col.features?.sort) {
@@ -2195,8 +2288,7 @@
         const $cell = $("<td>").attr("data-label", col.label);
         CT.applyColumnCellMeta($cell, col);
 
-        const attrs = (c.attrs && typeof c.attrs==="object") ? c.attrs : {};
-        Object.keys(attrs).forEach(attr => $cell.attr(attr, attrs[attr]));
+        CT.applyColumnDomAttrs($cell, c);
 
         let cellContent = $("<div>").addClass("cell-content");
         cellContent.html(c.display.template ?? `{{${c.name}}}`);
@@ -2580,6 +2672,9 @@
      */
     CT.setupEvents = function (item, table, options, colMap) {
         const view = item.views[0];
+        if (view && view.el && typeof CT.applyLayoutToRow === "function") {
+            CT.applyLayoutToRow(view.el, options.columns);
+        }
 
         options.columns.forEach(col=>{
             col.display.events.forEach(event=>{
@@ -3032,50 +3127,53 @@
         return merged;
     };
 
-    CT.applyLayoutToDom = function ($table, columns, options) {
-        if (!$table || !$table.length) {
+    CT.applyLayoutToRow = function ($row, columns) {
+        if (!$row || !$row.length) {
             return;
         }
-        const order = CT.chooserColumns(columns).map(function (col) {
+        const chooser = CT.chooserColumns(columns);
+        const order = chooser.map(function (col) {
             return col.name;
         });
         const hidden = {};
-        CT.chooserColumns(columns).forEach(function (col) {
+        chooser.forEach(function (col) {
             if (col.userHidden) {
                 hidden[col.name] = true;
             }
         });
+        const $action = $row.children(".kgrid-row-actions");
+        const byName = {};
+        $row.children("[data-name]").each(function () {
+            byName[this.getAttribute("data-name")] = this;
+        });
+        order.forEach(function (name) {
+            const el = byName[name];
+            if (!el) {
+                return;
+            }
+            if ($action.length) {
+                $(el).insertBefore($action);
+            } else {
+                $row.append(el);
+            }
+            el.classList.toggle("kgrid-user-hidden", !!hidden[name]);
+        });
+    };
+
+    CT.applyLayoutToDom = function ($table, columns, options) {
+        if (!$table || !$table.length) {
+            return;
+        }
         const $rows = $table.find(
             ".thead-labels tr, .thead-filters tr, .before-main-tbody tr, .main-tbody tr, .after-main-tbody tr"
         );
         $rows.each(function () {
-            const $row = $(this);
-            const $action = $row.children(".kgrid-row-actions");
-            const byName = {};
-            $row.children("[data-name]").each(function () {
-                byName[this.getAttribute("data-name")] = this;
-            });
-            order.forEach(function (name) {
-                const el = byName[name];
-                if (!el) {
-                    return;
-                }
-                if ($action.length) {
-                    $(el).insertBefore($action);
-                } else {
-                    $row.append(el);
-                }
-                el.classList.toggle("kgrid-user-hidden", !!hidden[name]);
-            });
+            CT.applyLayoutToRow($(this), columns);
         });
+        const visible = CT.layoutVisibleColumns(columns);
         const hasActions = $table.find(".kgrid-row-actions").length > 0;
-        CT.syncActionColumnColgroup(
-            $table,
-            order.length,
-            hasActions,
-            options,
-            CT.chooserColumns(columns)
-        );
+        CT.syncActionColumnColgroup($table, visible.length, hasActions, options, visible);
+        CT.syncSpanningCells($table, CT.participatingColumnCount(columns, hasActions));
     };
 
     CT.refreshCollectionTemplate = function (api, options) {
@@ -3458,14 +3556,14 @@
         const labelsRow = CT.setupLabelsHeader(table.find(".thead-labels"), options);
 
         const hasActionColumn = CT.hasActionColumn(options);
-        const visibleColumnsCount = labelsRow.find("th").length;
-        const dataColumnCount = visibleColumnsCount - (hasActionColumn ? 1 : 0);
+        const layoutCols = CT.layoutVisibleColumns(options.columns);
+        const visibleColumnsCount = CT.participatingColumnCount(options.columns, hasActionColumn);
         CT.syncActionColumnColgroup(
             table,
-            dataColumnCount,
+            layoutCols.length,
             hasActionColumn,
             options,
-            CT.chooserColumns(options.columns)
+            layoutCols
         );
 
         const filterForm = options.filterForm ?? CT.setupFilterHeader(table, options);

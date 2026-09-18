@@ -307,50 +307,53 @@
         return merged;
     };
 
-    CT.applyLayoutToDom = function ($table, columns, options) {
-        if (!$table || !$table.length) {
+    CT.applyLayoutToRow = function ($row, columns) {
+        if (!$row || !$row.length) {
             return;
         }
-        const order = CT.chooserColumns(columns).map(function (col) {
+        const chooser = CT.chooserColumns(columns);
+        const order = chooser.map(function (col) {
             return col.name;
         });
         const hidden = {};
-        CT.chooserColumns(columns).forEach(function (col) {
+        chooser.forEach(function (col) {
             if (col.userHidden) {
                 hidden[col.name] = true;
             }
         });
+        const $action = $row.children(".kgrid-row-actions");
+        const byName = {};
+        $row.children("[data-name]").each(function () {
+            byName[this.getAttribute("data-name")] = this;
+        });
+        order.forEach(function (name) {
+            const el = byName[name];
+            if (!el) {
+                return;
+            }
+            if ($action.length) {
+                $(el).insertBefore($action);
+            } else {
+                $row.append(el);
+            }
+            el.classList.toggle("kgrid-user-hidden", !!hidden[name]);
+        });
+    };
+
+    CT.applyLayoutToDom = function ($table, columns, options) {
+        if (!$table || !$table.length) {
+            return;
+        }
         const $rows = $table.find(
             ".thead-labels tr, .thead-filters tr, .before-main-tbody tr, .main-tbody tr, .after-main-tbody tr"
         );
         $rows.each(function () {
-            const $row = $(this);
-            const $action = $row.children(".kgrid-row-actions");
-            const byName = {};
-            $row.children("[data-name]").each(function () {
-                byName[this.getAttribute("data-name")] = this;
-            });
-            order.forEach(function (name) {
-                const el = byName[name];
-                if (!el) {
-                    return;
-                }
-                if ($action.length) {
-                    $(el).insertBefore($action);
-                } else {
-                    $row.append(el);
-                }
-                el.classList.toggle("kgrid-user-hidden", !!hidden[name]);
-            });
+            CT.applyLayoutToRow($(this), columns);
         });
+        const visible = CT.layoutVisibleColumns(columns);
         const hasActions = $table.find(".kgrid-row-actions").length > 0;
-        CT.syncActionColumnColgroup(
-            $table,
-            order.length,
-            hasActions,
-            options,
-            CT.chooserColumns(columns)
-        );
+        CT.syncActionColumnColgroup($table, visible.length, hasActions, options, visible);
+        CT.syncSpanningCells($table, CT.participatingColumnCount(columns, hasActions));
     };
 
     CT.refreshCollectionTemplate = function (api, options) {

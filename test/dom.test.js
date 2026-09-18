@@ -72,6 +72,17 @@ describe("dom helpers", () => {
         ).toBe(false);
     });
 
+    it("layoutVisibleColumns skips schema-hidden and user-hidden fields", () => {
+        const cols = [
+            { name: "id", hidden: true },
+            { name: "name" },
+            { name: "sku", userHidden: true },
+            { name: "qty" },
+        ];
+        expect(KGrid.layoutVisibleColumns(cols).map((c) => c.name)).toEqual(["name", "qty"]);
+        expect(KGrid.participatingColumnCount(cols, true)).toBe(3);
+    });
+
     it("actionColumnWidth scales with max visible buttons", () => {
         expect(KGrid.actionColumnWidth({ features: { delete: true } })).toBe("3.25rem");
         expect(KGrid.actionColumnWidth({ features: { update: true } })).toBe("5.75rem");

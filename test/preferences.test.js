@@ -256,6 +256,76 @@ describe("preferences persist", () => {
         expect(storage.get("kgrid:demo:layout")).toBeNull();
     });
 
+    it("omits defaultHidden columns from colgroup so remaining cells keep their widths", async () => {
+        const { $host } = mountTableHost();
+        mockKViews();
+        await initKGrid(
+            $host,
+            tableOptions({
+                features: { paging: true },
+                columns: [
+                    column("id", { defaultHidden: true, attrs: { width: 80 } }),
+                    column("name", { attrs: { width: 120 } }),
+                    column("sku", { defaultHidden: true, attrs: { width: 80 }, label: "SKU" }),
+                    column("qty", { attrs: { width: 90 } }),
+                ],
+            })
+        );
+        const colNames = $host.find("colgroup.kgrid-colgroup col").map(function () {
+            return this.getAttribute("data-name");
+        }).get();
+        expect(colNames).toEqual(["name", "qty"]);
+        expect($host.find("th[data-name='id']").hasClass("kgrid-user-hidden")).toBe(true);
+        expect($host.find("th[data-name='sku']").hasClass("kgrid-user-hidden")).toBe(true);
+        expect($host.find("th[data-name='sku']").attr("width")).toBeUndefined();
+        expect($host.find("col[data-name='sku']").length).toBe(0);
+        expect($host.find("col[data-name='name']")[0].style.width).toBe("120px");
+        expect($host.find(".paging-footer td").attr("colspan")).toBe("2");
+    });
+
+    it("inserts a colgroup slot when a hidden column is shown", async () => {
+        const { $host } = mountTableHost();
+        mockKViews();
+        const grid = await initKGrid(
+            $host,
+            tableOptions({
+                features: { paging: true },
+                columns: [
+                    column("name", { attrs: { width: 120 } }),
+                    column("sku", { defaultHidden: true, attrs: { width: 80 } }),
+                    column("qty", { attrs: { width: 90 } }),
+                ],
+            })
+        );
+        grid.setLayout({
+            columns: [
+                { name: "name", hidden: false },
+                { name: "sku", hidden: false },
+                { name: "qty", hidden: false },
+            ],
+        });
+        const colNames = $host.find("colgroup.kgrid-colgroup col").map(function () {
+            return this.getAttribute("data-name");
+        }).get();
+        expect(colNames).toEqual(["name", "sku", "qty"]);
+        expect($host.find("th[data-name='sku']").hasClass("kgrid-user-hidden")).toBe(false);
+        expect($host.find("col[data-name='sku']")[0].style.width).toBe("80px");
+        expect($host.find(".paging-footer td").attr("colspan")).toBe("3");
+    });
+
+    it("applyLayoutToRow retoggles hidden class on a newly rendered row", () => {
+        const columns = [
+            KGrid.normalizeColumnConfig(column("name")),
+            KGrid.normalizeColumnConfig(column("sku")),
+        ];
+        columns[1].userHidden = false;
+        const $row = $(
+            "<tr><td data-name='name'>A</td><td data-name='sku' class='kgrid-user-hidden'>B</td></tr>"
+        );
+        KGrid.applyLayoutToRow($row, columns);
+        expect($row.children("[data-name='sku']").hasClass("kgrid-user-hidden")).toBe(false);
+    });
+
     it("restores user filters onto the form before remote load", async () => {
         const storage = memoryStorage();
         storage.set("kgrid:demo:filters", {

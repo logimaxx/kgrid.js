@@ -26,8 +26,7 @@
         const $cell = $("<td>").attr("data-label", col.label);
         CT.applyColumnCellMeta($cell, col);
 
-        const attrs = (c.attrs && typeof c.attrs==="object") ? c.attrs : {};
-        Object.keys(attrs).forEach(attr => $cell.attr(attr, attrs[attr]));
+        CT.applyColumnDomAttrs($cell, c);
 
         let cellContent = $("<div>").addClass("cell-content");
         cellContent.html(c.display.template ?? `{{${c.name}}}`);

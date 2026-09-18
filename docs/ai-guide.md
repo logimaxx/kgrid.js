@@ -159,7 +159,7 @@ Each column in `columns: []` is normalized via `KGrid.normalizeColumnConfig` (pr
 
 **Hidden / persist filters:** columns with `hidden: true` or `filter.type: "hidden"` get a hidden form field (no filter-row cell). `filter.persist` (or hidden) re-applies `filter.default` on form reset.
 
-**User column layout + filter reload:** `storageKey` persists layout (all companies) and filter values (`filterStorageScope` suffixes filters, e.g. company id) to `localStorage`. `features.columnChooser` adds a Columns panel (reorder + hide). Schema `hidden` columns stay out of the chooser. `defaultHidden: true` starts the column collapsed but still listed in the chooser (lean list defaults). `locked: true` columns cannot be hidden. User-hidden columns collapse in the table but keep filter/insert/update inputs. `grid.getLayout()` / `setLayout()` / `resetLayout()` (reset restores `defaultHidden`, not “all visible”).
+**User column layout + filter reload:** `storageKey` persists layout (all companies) and filter values (`filterStorageScope` suffixes filters, e.g. company id) to `localStorage`. `features.columnChooser` adds a Columns panel (reorder + hide). Schema `hidden` columns stay out of the chooser. `defaultHidden: true` starts the column hidden (`display:none`, omitted from `<colgroup>`) but still listed in the chooser. `locked: true` columns cannot be hidden. Hidden columns keep filter/insert/update inputs in the DOM. `grid.getLayout()` / `setLayout()` / `resetLayout()` (reset restores `defaultHidden`, not “all visible”).
 
 ---
 
@@ -173,7 +173,7 @@ When `KGrid.hasActionColumn(options)`:
 - `<colgroup>` with `col.kgrid-row-actions-col` (synced at init)
 - **View mode:** column collapsed unless `data-has-row-menu` (idle menu actions present) — full width for data columns when collapsed
 - **Edit mode:** column visible — menu/idle actions + save/cancel; insert row submit in `.new-record-row`
-- **Dropdown mode:** `.kgrid-row-actions-menu` for idle items; save/cancel stay as buttons
+- **Dropdown mode:** `.kgrid-row-actions-menu` for idle items; save/cancel stay as buttons. Menu is `position:fixed` while open (not Bootstrap Dropdown / Popper). Do not call `bootstrap.Dropdown` on `.kgrid-actions-dropdown-toggle`.
 
 Rule: always use `KGrid.hasActionColumn(options)` — do not add action `<th>` only in header or only in body. Do not invent a data column for action buttons.
 
@@ -248,7 +248,8 @@ Deprecated: `setEditMode`, `toggleEditMode` — use `setInteraction`.
 10. **Editing `dist/kgrid.js` in node_modules** — change `src/` in the package or fork; rebuild with `npm run build`.
 11. **Assuming cancel edit reloads local `data`** — cancel button calls `loadFromRemote()`; local-only grids need a custom approach.
 12. **Breaking class names** — `custom-table-shell`, `data-interaction`, `main-tbody`, `kgrid-row-actions` are required by CSS and KViews wiring.
-13. **Host CSS `display: none` on `.kgrid-user-hidden`** — leaves width gaps under `table-layout: fixed`; keep `visibility: collapse` (clip text if Chrome stretches thead).
+13. **Emitting a `<col>` for a user-hidden column** — `display:none` cells skip that slot; leftover cols remap widths. Colgroup lists only participating columns. Do not set `width` on `th`/`td`.
+14. **Init `bootstrap.Dropdown` on kebab toggles** — KGrid already binds the menu (`mountRowActionDropdowns`); Bootstrap Dropdown / Popper clips or swallows item clicks.
 
 ---
 
@@ -284,4 +285,4 @@ Run demo locally: `npm run demo` in the kgrid package → `http://localhost:5173
 
 ## Version
 
-This guide matches **@logimaxx/kgrid@0.4.1** (column chooser, `defaultHidden`, persisted layout/filters, row lifecycle hooks, `column.class`, persist filters, `input` shorthand). If APIs differ in another version, prefer `docs/api.md` in the installed package.
+This guide matches **@logimaxx/kgrid@0.5.2** (declarative `rowActions`, kebab menus without Bootstrap Dropdown, column chooser, `defaultHidden`, persisted layout/filters). If APIs differ in another version, prefer `docs/api.md` in the installed package.

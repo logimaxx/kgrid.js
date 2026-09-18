@@ -117,10 +117,14 @@ See **[table-shell.md](table-shell.md)** for structure, placeholders, and custom
 | `KGrid.hasActionColumn(options)` | `true` when `features.create`, or resolved `rowActions` / shimmed delete·clone / `features.update` (save/cancel) |
 | `KGrid.actionColumnWidth(options)` | Compact CSS width for the actions column under `table-layout: fixed` |
 | `KGrid.resolveRowActions(options, handlers?)` | Normalize `rowActions` (or shim from features); caches on `options` |
-| `KGrid.renderRowActions($td, options, formId?)` | Fill a data-row actions cell (buttons or dropdown) |
-| `KGrid.syncActionColumnColgroup($table, dataColumnCount, hasActions, options?)` | Prepends `<colgroup>` so the actions column can collapse in view mode; sets actions col width from `actionColumnWidth` |
+| `KGrid.renderRowActions($td, options, formId?)` | Fill a data-row actions cell (buttons or kebab dropdown) |
+| `KGrid.mountRowActionDropdowns($root)` | Bind kebab toggles under `$root` (jQuery click; menu `position:fixed` while open). Called after each row render. |
+| `KGrid.closeRowActionDropdowns($exceptMenu?)` | Close open kebab menus (also on document click and Escape) |
+| `KGrid.layoutVisibleColumns(columns)` | Named, not schema-hidden, not user-hidden — the columns that occupy a table-layout slot |
+| `KGrid.syncActionColumnColgroup($table, dataColumnCount, hasActions, options?, layoutColumns?)` | Prepends `<colgroup>`; one `<col>` per participating data column; skips `userHidden`; action col from `actionColumnWidth` |
+| `KGrid.applyLayoutToRow($row, columns)` | Reorder cells + toggle `.kgrid-user-hidden` (also from `afterrender` after paging) |
 
-Requires `styles/table.css` for view/edit visibility rules on `.kgrid-row-actions` and `col.kgrid-row-actions-col`.
+Kebab menus (`rowActions.display: "dropdown"`) use Bootstrap **markup** (`.dropdown-toggle`, `.dropdown-menu`) but **not** `bootstrap.Dropdown` / Popper. Requires `styles/table.css` for view/edit visibility on `.kgrid-row-actions` / `col.kgrid-row-actions-col`, kebab `.dropdown-menu.show`, and user-hidden columns (`display: none`; no colgroup slot).
 
 ### Low-level setup (advanced / tests)
 
