@@ -400,8 +400,9 @@
                 }
             });
         } else {
+            // span (not div): stay on one horizontal line with sibling actions
             idleItems.forEach(function (item) {
-                const $grp = $("<div>")
+                const $grp = $("<span>")
                     .addClass(item.groupClass || "btn-group kgrid-custom-action-grp")
                     .appendTo($buttonColumn);
                 if (item.when === "always") {
@@ -413,7 +414,7 @@
 
         const editingAll = ra.editingItems.concat(editingExtras);
         if (editingAll.length) {
-            const $grp = $("<div>").addClass("btn-group edit-item-grp").appendTo($buttonColumn);
+            const $grp = $("<span>").addClass("btn-group edit-item-grp").appendTo($buttonColumn);
             editingAll.forEach(function (item) {
                 appendButton($grp, item, dataRowFormId);
             });

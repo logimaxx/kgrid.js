@@ -1,4 +1,4 @@
-/*! @logimaxx/kgrid | (c) Logimaxx System SRL — proprietary | https://logimaxx.ro | built 2026-09-18T05:40:37.470Z */
+/*! @logimaxx/kgrid | (c) Logimaxx System SRL — proprietary | https://logimaxx.ro | built 2026-09-30T07:34:30.340Z */
 
 /* --- configure.js --- */
 /**
@@ -992,8 +992,9 @@
                 }
             });
         } else {
+            // span (not div): stay on one horizontal line with sibling actions
             idleItems.forEach(function (item) {
-                const $grp = $("<div>")
+                const $grp = $("<span>")
                     .addClass(item.groupClass || "btn-group kgrid-custom-action-grp")
                     .appendTo($buttonColumn);
                 if (item.when === "always") {
@@ -1005,7 +1006,7 @@
 
         const editingAll = ra.editingItems.concat(editingExtras);
         if (editingAll.length) {
-            const $grp = $("<div>").addClass("btn-group edit-item-grp").appendTo($buttonColumn);
+            const $grp = $("<span>").addClass("btn-group edit-item-grp").appendTo($buttonColumn);
             editingAll.forEach(function (item) {
                 appendButton($grp, item, dataRowFormId);
             });

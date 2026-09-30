@@ -21,7 +21,7 @@ Human-readable references: [README](../README.md), [configuration.md](configurat
 |-------------|--------|
 | jQuery `>= 3.7.0` | Peer dependency |
 | `@logimaxx/kviews` | Peer; must expose `createCollectionInstance` |
-| `styles/table.css` | **Required** — view/edit modes, row-actions collapse / compact width, cell visibility |
+| `styles/table.css` | **Required** — view/edit modes, row-actions collapse / compact width, cell visibility. Theme via `--kgrid-*` on `.custom-table-shell` (defaults are Linear/Notion: row separators only) |
 | Load order | jQuery → KViews → `kgrid.js` → (optional `kgrid-widgets.js`) → `configure({ customInputTypes })` → `init()` |
 | Bootstrap + Font Awesome | Recommended (default template uses `btn-*`, `fa-sort-*`) |
 
