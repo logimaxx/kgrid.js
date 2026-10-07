@@ -177,12 +177,21 @@
         const filterForm = options.filterForm ?? CT.setupFilterHeader(table, options);
 
         let pagingFooter;
+        const savedView =
+            options.storageKey &&
+            options.features &&
+            (options.features.sorting || options.features.paging)
+                ? CT.preferencesLoadView(options)
+                : null;
         if (options.features && options.features.paging) {
             pagingFooter = CT.setupPagingFooter(
                 table.find(".paging-footer"),
                 options,
                 visibleColumnsCount
             );
+            if (savedView) {
+                CT.applySavedPageSize(pagingFooter, options, savedView.pageSize);
+            }
         } else {
             pagingFooter = null;
             table.find(".paging-footer").remove();
@@ -236,7 +245,17 @@
             if (options.insertUrl) {
                 api.instance.setUrl(options.insertUrl, "insert");
             }
+            if (savedView && options.features && options.features.sorting) {
+                CT.applySavedSort(api.instance, options, savedView);
+            }
+            if (savedView && options.features && options.features.paging) {
+                CT.applySavedOffset(api.instance, savedView.offset);
+            }
         }
+        if (options.features && options.features.sorting) {
+            CT.syncSortIndicators(table, CT.collectionSort(api.instance));
+        }
+        CT.bindViewPersistence(api.instance, options, table);
 
         CT.setupDefaultFilters(filterForm, options, api.instance, { skipInitSubmit: true });
         const filterFormEl = filterForm && (filterForm.jquery ? filterForm[0] : filterForm);

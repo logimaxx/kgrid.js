@@ -23,9 +23,12 @@
          * Built-ins: delete, clone. Save/cancel come from features.update.
          */
         rowActions: null,
-        /** Persist key for layout (and filters). Required for localStorage. */
+        /** Persist key for layout, filters, sort, and paging. Required for localStorage. */
         storageKey: null,
-        /** Extra suffix for saved filters only (e.g. company id). Layout ignores this. */
+        /**
+         * Extra suffix for saved filters, sort, and paging (e.g. company id).
+         * Column layout ignores this and stays shared.
+         */
         filterStorageScope: null,
         columnChooserLabel: "Columns",
         columnChooserResetLabel: "Reset columns",

@@ -163,8 +163,8 @@ features: {
 
 | Option | Type | Description |
 |--------|------|-------------|
-| `storageKey` | `string` | Persist layout (order + user-hidden) and filter values. Layout key: `kgrid:{storageKey}:layout`. Filters: `kgrid:{storageKey}:filters` plus optional scope. |
-| `filterStorageScope` | `string` | Suffix for saved filters only (e.g. company id). Layout is shared across scopes. |
+| `storageKey` | `string` | Persist layout (order + user-hidden), filter values, sort, and paging. Layout key: `kgrid:{storageKey}:layout`. Filters: `kgrid:{storageKey}:filters`. Sort and page size / offset: `kgrid:{storageKey}:view`. Scope suffix applies to filters and view, not layout. |
+| `filterStorageScope` | `string` | Suffix for saved filters, sort, and paging (e.g. company id). Column layout is shared across scopes. |
 | `features.columnChooser` | `boolean` | Columns panel (checkbox + drag). Works without `storageKey` (session only). |
 | `columnChooserLabel` | `string` | Button label (default `"Columns"`) |
 | `columnChooserResetLabel` | `string` | Reset button (default `"Reset columns"`) |
@@ -182,6 +182,8 @@ Column flags:
 User-hidden columns use **`display: none`** on cells and are **omitted from `<colgroup>`**. `table-layout: fixed` maps each participating cell to the next `<col>`; a leftover zero-width col remaps every following column (letter-stacked headers, blank gaps). Chrome also treats `visibility: collapse` as `hidden`, so that is not a substitute. Filter/insert/update controls stay in the DOM. Filter values on hidden columns remain until Reset.
 
 `filter.persist` still means “keep `filter.default` on form reset” — it is not reload persistence. Reload persistence is `storageKey`.
+
+With `features.sorting`, header icons (`.sort-up` / `.sort-down` / `.sort-default`) follow the sort string actually sent (`url.parameters.sort`), including a sort restored from `storageKey`. With `features.paging`, the page-size `<select>` and the current offset are restored before the first request and saved again after each successful load. A later `setUrl` that omits `sort` does not wipe a stored sort; an explicit empty sort does.
 
 ### Row actions column
 

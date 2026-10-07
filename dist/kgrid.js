@@ -1,4 +1,4 @@
-/*! @logimaxx/kgrid | (c) Logimaxx System SRL — proprietary | https://logimaxx.ro | built 2026-09-30T07:34:30.340Z */
+/*! @logimaxx/kgrid | (c) Logimaxx System SRL — proprietary | https://logimaxx.ro | built 2026-10-07T08:28:31.963Z */
 
 /* --- configure.js --- */
 /**
@@ -216,9 +216,12 @@
          * Built-ins: delete, clone. Save/cancel come from features.update.
          */
         rowActions: null,
-        /** Persist key for layout (and filters). Required for localStorage. */
+        /** Persist key for layout, filters, sort, and paging. Required for localStorage. */
         storageKey: null,
-        /** Extra suffix for saved filters only (e.g. company id). Layout ignores this. */
+        /**
+         * Extra suffix for saved filters, sort, and paging (e.g. company id).
+         * Column layout ignores this and stays shared.
+         */
         filterStorageScope: null,
         columnChooserLabel: "Columns",
         columnChooserResetLabel: "Reset columns",
@@ -2820,8 +2823,8 @@
 
 /* --- preferences.js --- */
 /**
- * User preferences: column layout (order + hide) and filter values.
- * Layout is keyed by storageKey; filters also use filterStorageScope (e.g. company).
+ * User preferences: column layout (order + hide), filter values, sort, and paging.
+ * Layout is keyed by storageKey. Filters, sort, and paging also use filterStorageScope.
  */
 (function (CT) {
     CT.PREFERENCES_VERSION = 1;
@@ -2874,6 +2877,14 @@
 
     CT.filtersStorageKey = function (storageKey, scope) {
         let key = "kgrid:" + storageKey + ":filters";
+        if (scope != null && String(scope) !== "") {
+            key += ":" + String(scope);
+        }
+        return key;
+    };
+
+    CT.viewStorageKey = function (storageKey, scope) {
+        let key = "kgrid:" + storageKey + ":view";
         if (scope != null && String(scope) !== "") {
             key += ":" + String(scope);
         }
@@ -3054,6 +3065,220 @@
             CT.filtersStorageKey(options.storageKey, options.filterStorageScope),
             { v: CT.PREFERENCES_VERSION, filters: filters || [] }
         );
+    };
+
+    CT.preferencesLoadView = function (options) {
+        if (!options || !options.storageKey) {
+            return null;
+        }
+        const stored = CT.preferencesStorageFor(options).get(
+            CT.viewStorageKey(options.storageKey, options.filterStorageScope)
+        );
+        if (!stored || stored.v !== CT.PREFERENCES_VERSION || typeof stored !== "object") {
+            return null;
+        }
+        return stored;
+    };
+
+    CT.preferencesSaveView = function (options, view) {
+        if (!options || !options.storageKey) {
+            return;
+        }
+        CT.preferencesStorageFor(options).set(
+            CT.viewStorageKey(options.storageKey, options.filterStorageScope),
+            view
+        );
+    };
+
+    CT.sortableColumnNames = function (columns) {
+        const names = new Set();
+        (columns || []).forEach(function (col) {
+            if (col && col.name && col.features && col.features.sort && !col.hidden) {
+                names.add(col.name);
+            }
+        });
+        return names;
+    };
+
+    /** Keep only sort tokens KViews can apply on the current sortable columns. */
+    CT.sanitizeSort = function (sort, columns) {
+        const allowed = CT.sortableColumnNames(columns);
+        const parts = [];
+        String(sort == null ? "" : sort)
+            .split(",")
+            .forEach(function (part) {
+                const match = /^(-*)([A-Za-z0-9_-]+)$/.exec(String(part).trim());
+                if (!match || !allowed.has(match[2])) {
+                    return;
+                }
+                parts.push((match[1].length ? "-" : "") + match[2]);
+            });
+        return parts.join(",");
+    };
+
+    CT.collectionSort = function (instance) {
+        const params = instance && instance.url && instance.url.parameters;
+        if (!params || params.sort == null || params.sort === "") {
+            return "";
+        }
+        return String(params.sort);
+    };
+
+    /** @returns {"asc"|"desc"|null} */
+    CT.sortDirectionForField = function (sort, field) {
+        const parts = String(sort || "").split(",");
+        for (let i = 0; i < parts.length; i++) {
+            const match = /^(-*)([A-Za-z0-9_-]+)$/.exec(parts[i].trim());
+            if (!match || match[2] !== field) {
+                continue;
+            }
+            return match[1].length ? "desc" : "asc";
+        }
+        return null;
+    };
+
+    /**
+     * Header icons follow the sort string KViews will send.
+     * sortdir matches KViews' click cycle: "up" = asc, "down" = desc, absent = unsorted.
+     */
+    CT.syncSortIndicators = function ($root, sort) {
+        if (!$root || !$root.length) {
+            return;
+        }
+        $root.find("[data-sortfld]").each(function () {
+            const $lnk = $(this);
+            const field = $lnk.attr("data-sortfld");
+            const dir = CT.sortDirectionForField(sort, field);
+            const $up = $lnk.find(".sort-up");
+            const $down = $lnk.find(".sort-down");
+            const $def = $lnk.find(".sort-default");
+            if (dir === "asc") {
+                $lnk.data("sortdir", "up");
+                $up.show();
+                $down.hide();
+                $def.hide();
+            } else if (dir === "desc") {
+                $lnk.data("sortdir", "down");
+                $up.hide();
+                $down.show();
+                $def.hide();
+            } else {
+                $lnk.removeData("sortdir");
+                $up.hide();
+                $down.hide();
+                $def.show();
+            }
+        });
+    };
+
+    CT.applySavedPageSize = function ($footer, options, pageSize) {
+        if (!$footer || !$footer.length || pageSize == null) {
+            return false;
+        }
+        const size = String(pageSize);
+        if (!/^\d+$/.test(size) || size === "0") {
+            return false;
+        }
+        const allowed = (options.pagingPageSizes || []).map(function (n) {
+            return String(n);
+        });
+        if (allowed.length && allowed.indexOf(size) < 0) {
+            return false;
+        }
+        const $sel = $footer.find("select.pagesize");
+        if (!$sel.length) {
+            return false;
+        }
+        $sel.val(size);
+        $footer.find(".pages").attr("data-pagesize", size);
+        return true;
+    };
+
+    CT.applySavedOffset = function (instance, offset) {
+        if (!instance || offset == null || !/^\d+$/.test(String(offset))) {
+            return;
+        }
+        if (typeof instance.setOffset === "function") {
+            instance.setOffset(String(offset));
+            return;
+        }
+        instance.offset = String(offset);
+    };
+
+    CT.applySavedSort = function (instance, options, saved) {
+        if (!saved || saved.sort == null || !options || !options.features || !options.features.sorting) {
+            return;
+        }
+        const params = instance && instance.url && instance.url.parameters;
+        if (!params) {
+            return;
+        }
+        const sort = CT.sanitizeSort(saved.sort, options.columns);
+        if (sort) {
+            params.sort = sort;
+        } else {
+            delete params.sort;
+        }
+    };
+
+    CT.persistViewState = function (instance, options, $table) {
+        if (!options || !options.storageKey || !instance || !options.features) {
+            return;
+        }
+        const sorting = !!options.features.sorting;
+        const paging = !!options.features.paging;
+        if (!sorting && !paging) {
+            return;
+        }
+        const current = CT.preferencesLoadView(options) || {};
+        const next = { v: CT.PREFERENCES_VERSION };
+        if (sorting) {
+            const params = instance.url && instance.url.parameters;
+            if (params && Object.prototype.hasOwnProperty.call(params, "sort")) {
+                next.sort = CT.sanitizeSort(params.sort, options.columns);
+            } else if (typeof current.sort === "string") {
+                next.sort = current.sort;
+            } else {
+                next.sort = "";
+            }
+        }
+        if (paging) {
+            const size = $table && $table.length ? $table.find("select.pagesize").val() : null;
+            const allowed = (options.pagingPageSizes || []).map(function (n) {
+                return String(n);
+            });
+            if (
+                size != null &&
+                /^\d+$/.test(String(size)) &&
+                String(size) !== "0" &&
+                (!allowed.length || allowed.indexOf(String(size)) >= 0)
+            ) {
+                next.pageSize = Number(size);
+            } else if (current.pageSize != null) {
+                next.pageSize = current.pageSize;
+            }
+            const offset = instance.offset != null ? String(instance.offset) : "0";
+            next.offset = /^\d+$/.test(offset) ? Number(offset) : 0;
+        }
+        CT.preferencesSaveView(options, next);
+    };
+
+    CT.bindViewPersistence = function (instance, options, $table) {
+        if (!instance || typeof instance.on !== "function") {
+            return;
+        }
+        if (!options || !options.storageKey || !options.features) {
+            return;
+        }
+        if (!options.features.sorting && !options.features.paging) {
+            return;
+        }
+        instance.on("load", function () {
+            CT.persistViewState(instance, options, $table);
+            if (options.features.sorting) {
+                CT.syncSortIndicators($table, CT.collectionSort(instance));
+            }
+        });
     };
 
     CT.reorderColumns = function (columns, orderedVisibleNames) {
@@ -3570,12 +3795,21 @@
         const filterForm = options.filterForm ?? CT.setupFilterHeader(table, options);
 
         let pagingFooter;
+        const savedView =
+            options.storageKey &&
+            options.features &&
+            (options.features.sorting || options.features.paging)
+                ? CT.preferencesLoadView(options)
+                : null;
         if (options.features && options.features.paging) {
             pagingFooter = CT.setupPagingFooter(
                 table.find(".paging-footer"),
                 options,
                 visibleColumnsCount
             );
+            if (savedView) {
+                CT.applySavedPageSize(pagingFooter, options, savedView.pageSize);
+            }
         } else {
             pagingFooter = null;
             table.find(".paging-footer").remove();
@@ -3629,7 +3863,17 @@
             if (options.insertUrl) {
                 api.instance.setUrl(options.insertUrl, "insert");
             }
+            if (savedView && options.features && options.features.sorting) {
+                CT.applySavedSort(api.instance, options, savedView);
+            }
+            if (savedView && options.features && options.features.paging) {
+                CT.applySavedOffset(api.instance, savedView.offset);
+            }
         }
+        if (options.features && options.features.sorting) {
+            CT.syncSortIndicators(table, CT.collectionSort(api.instance));
+        }
+        CT.bindViewPersistence(api.instance, options, table);
 
         CT.setupDefaultFilters(filterForm, options, api.instance, { skipInitSubmit: true });
         const filterFormEl = filterForm && (filterForm.jquery ? filterForm[0] : filterForm);

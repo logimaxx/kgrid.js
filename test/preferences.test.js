@@ -436,6 +436,177 @@ describe("preferences persist", () => {
     });
 });
 
+describe("view preferences", () => {
+    afterEach(() => {
+        delete globalThis.KViews;
+        document.body.innerHTML = "";
+    });
+
+    function sortColumns() {
+        return [
+            column("name", { label: "Name", features: { sort: true } }),
+            column("sku", { label: "SKU", features: { sort: true } }),
+        ];
+    }
+
+    it("restores page size before the collection is created and offset before load", async () => {
+        const storage = memoryStorage();
+        storage.set("kgrid:demo:view", { v: 1, pageSize: 50, offset: 25, sort: "" });
+        const { $host } = mountTableHost();
+        const { instance } = mockKViews();
+        instance.url = { parameters: {} };
+        instance.setOffset = vi.fn();
+        await initKGrid(
+            $host,
+            tableOptions({
+                data: undefined,
+                url: "/api/items",
+                storageKey: "demo",
+                preferencesStorage: storage,
+                features: { paging: true, sorting: true },
+                columns: sortColumns(),
+            })
+        );
+        expect($host.find("select.pagesize").val()).toBe("50");
+        expect($host.find(".pages").attr("data-pagesize")).toBe("50");
+        expect(instance.setOffset).toHaveBeenCalledWith("25");
+    });
+
+    it("ignores a page size that is not in pagingPageSizes", async () => {
+        const storage = memoryStorage();
+        storage.set("kgrid:demo:view", { v: 1, pageSize: 13, offset: 0 });
+        const { $host } = mountTableHost();
+        mockKViews();
+        await initKGrid(
+            $host,
+            tableOptions({
+                storageKey: "demo",
+                preferencesStorage: storage,
+                features: { paging: true },
+                pagingPageSizes: [10, 25],
+                pagingDefaultSize: 10,
+                columns: [column("name")],
+            })
+        );
+        expect($host.find("select.pagesize").val()).toBe("10");
+    });
+
+    it("restores sort onto the collection URL and the header icons", async () => {
+        const storage = memoryStorage();
+        storage.set("kgrid:demo:view:9", {
+            v: 1,
+            sort: "name,-sku",
+            pageSize: 10,
+            offset: 0,
+        });
+        const { $host } = mountTableHost();
+        const { instance } = mockKViews();
+        instance.url = { parameters: { sort: "-name" } };
+        await initKGrid(
+            $host,
+            tableOptions({
+                data: undefined,
+                url: "/api/items",
+                storageKey: "demo",
+                filterStorageScope: "9",
+                preferencesStorage: storage,
+                features: { sorting: true, paging: true },
+                columns: sortColumns(),
+            })
+        );
+        expect(instance.url.parameters.sort).toBe("name,-sku");
+        const $name = $host.find("a.sort[data-sortfld='name']");
+        const $sku = $host.find("a.sort[data-sortfld='sku']");
+        expect($name.find(".sort-up")[0].style.display).toBe("");
+        expect($name.find(".sort-down")[0].style.display).toBe("none");
+        expect($name.find(".sort-default")[0].style.display).toBe("none");
+        expect($name.data("sortdir")).toBe("up");
+        expect($sku.find(".sort-down")[0].style.display).toBe("");
+        expect($sku.find(".sort-up")[0].style.display).toBe("none");
+        expect($sku.find(".sort-default")[0].style.display).toBe("none");
+        expect($sku.data("sortdir")).toBe("down");
+    });
+
+    it("shows icons for a sort already on the URL when nothing is saved", async () => {
+        const { $host } = mountTableHost();
+        const { instance } = mockKViews();
+        instance.url = { parameters: { sort: "-name" } };
+        await initKGrid(
+            $host,
+            tableOptions({
+                features: { sorting: true },
+                columns: sortColumns(),
+            })
+        );
+        const $name = $host.find("a.sort[data-sortfld='name']");
+        const $sku = $host.find("a.sort[data-sortfld='sku']");
+        expect($name.find(".sort-down")[0].style.display).toBe("");
+        expect($name.find(".sort-default")[0].style.display).toBe("none");
+        expect($name.data("sortdir")).toBe("down");
+        expect($sku.find(".sort-default")[0].style.display).toBe("");
+        expect($sku.find(".sort-up")[0].style.display).toBe("none");
+        expect($sku.data("sortdir")).toBeUndefined();
+    });
+
+    it("saves sort, page size, and offset after load", async () => {
+        const storage = memoryStorage();
+        const { $host } = mountTableHost();
+        const { instance } = mockKViews();
+        const listeners = [];
+        instance.on = function (eventName, cb) {
+            listeners.push([eventName, cb]);
+            return instance;
+        };
+        instance.url = { parameters: { sort: "-sku" } };
+        instance.offset = 50;
+        await initKGrid(
+            $host,
+            tableOptions({
+                data: undefined,
+                url: "/api/items",
+                storageKey: "demo",
+                preferencesStorage: storage,
+                features: { sorting: true, paging: true },
+                columns: sortColumns(),
+            })
+        );
+        $host.find("select.pagesize").val("25");
+        listeners.forEach(function (pair) {
+            if (pair[0] === "load") pair[1]();
+        });
+        expect(storage.get("kgrid:demo:view")).toEqual({
+            v: 1,
+            sort: "-sku",
+            pageSize: 25,
+            offset: 50,
+        });
+    });
+
+    it("keeps a stored sort when the request URL has no sort key", () => {
+        const storage = memoryStorage();
+        storage.set("kgrid:demo:view", { v: 1, sort: "-name", pageSize: 25, offset: 0 });
+        const options = {
+            storageKey: "demo",
+            preferencesStorage: storage,
+            features: { sorting: true, paging: true },
+            pagingPageSizes: [10, 25, 50, 75],
+            columns: sortColumns().map((col) => KGrid.normalizeColumnConfig(col)),
+        };
+        KGrid.persistViewState(
+            { url: { parameters: {} }, offset: 0 },
+            options,
+            $("<table>")
+        );
+        expect(storage.get("kgrid:demo:view").sort).toBe("-name");
+        KGrid.persistViewState(
+            { url: { parameters: { sort: "" } }, offset: 0 },
+            options,
+            $("<table>")
+        );
+        expect(storage.get("kgrid:demo:view").sort).toBe("");
+    });
+});
+
 function gridFormField($host, name) {
     const form = $host.find("form.table-filter-form")[0];
     return form && form.elements.namedItem(name);

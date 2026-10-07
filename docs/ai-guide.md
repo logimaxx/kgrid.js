@@ -159,7 +159,7 @@ Each column in `columns: []` is normalized via `KGrid.normalizeColumnConfig` (pr
 
 **Hidden / persist filters:** columns with `hidden: true` or `filter.type: "hidden"` get a hidden form field (no filter-row cell). `filter.persist` (or hidden) re-applies `filter.default` on form reset.
 
-**User column layout + filter reload:** `storageKey` persists layout (all companies) and filter values (`filterStorageScope` suffixes filters, e.g. company id) to `localStorage`. `features.columnChooser` adds a Columns panel (reorder + hide). Schema `hidden` columns stay out of the chooser. `defaultHidden: true` starts the column hidden (`display:none`, omitted from `<colgroup>`) but still listed in the chooser. `locked: true` columns cannot be hidden. Hidden columns keep filter/insert/update inputs in the DOM. `grid.getLayout()` / `setLayout()` / `resetLayout()` (reset restores `defaultHidden`, not “all visible”).
+**User column layout + filter reload:** `storageKey` persists layout (all companies), filter values, sort, and paging (`filterStorageScope` suffixes filters and the view key, e.g. company id) to `localStorage`. Sort icons follow `url.parameters.sort`. Page size is applied to `.pagesize` before the collection is created; offset is applied before the first `loadFromRemote`. `features.columnChooser` adds a Columns panel (reorder + hide). Schema `hidden` columns stay out of the chooser. `defaultHidden: true` starts the column hidden (`display:none`, omitted from `<colgroup>`) but still listed in the chooser. `locked: true` columns cannot be hidden. Hidden columns keep filter/insert/update inputs in the DOM. `grid.getLayout()` / `setLayout()` / `resetLayout()` (reset restores `defaultHidden`, not “all visible”).
 
 ---
 
@@ -223,7 +223,7 @@ Deprecated: `setEditMode`, `toggleEditMode` — use `setInteraction`.
 |------|----------|
 | Toggle edit UI | `grid.setInteraction("edit")` / `"view"` |
 | Column chooser | `features.columnChooser` + `storageKey` |
-| Persist filters on reload | `storageKey` (+ optional `filterStorageScope`) |
+| Persist filters, sort, and paging on reload | `storageKey` (+ optional `filterStorageScope`; layout stays unscoped) |
 | Programmatic filter | `grid.filterForm.filter("name", "x", "~=~")` |
 | Reload data | `grid.instance.loadFromRemote()` |
 | Custom delete modal | `KGrid.configure({ deleteConfirm })` |
