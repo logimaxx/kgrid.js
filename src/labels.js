@@ -18,9 +18,13 @@
             let cell = labelTemplate.clone(true);
             CT.applyColumnDomAttrs(cell, col);
             CT.applyColumnCellMeta(cell, col);
+            const label = col.label ?? "";
 
             if (!col.features?.sort) {
-                const tmp = cell.empty().html(col.label ?? "");
+                const tmp = cell.empty().html(label);
+                if (label !== "") {
+                    tmp.attr("title", label);
+                }
                 CT.applyColumnCellMeta(tmp, col);
                 labelsRow.append(tmp);
                 return;
@@ -31,7 +35,10 @@
                         JSON.stringify(col, null, 2)
                 );
             }
-            cell.find("span.column-label").text(col.label ?? "");
+            const $name = cell.find("span.column-label").text(label);
+            if (label !== "") {
+                $name.attr("title", label);
+            }
             cell.children("a").attr("data-sortfld", col.name);
             cell.appendTo(labelsRow);
         });

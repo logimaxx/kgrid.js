@@ -17,6 +17,8 @@ describe("setupLabelsHeader", () => {
         expect(labelsRow.find("th").length).toBe(2);
         expect(labelsRow.find("th").eq(0).text()).toContain("ID");
         expect(labelsRow.find("th").eq(1).text()).toContain("Name");
+        expect(labelsRow.find("th").eq(0).attr("title")).toBe("ID");
+        expect(labelsRow.find("th").eq(1).attr("title")).toBe("Name");
     });
 
     it("adds sort link when column.features.sort is true", () => {
@@ -37,6 +39,7 @@ describe("setupLabelsHeader", () => {
         const $sort = labelsRow.find("a.sort[data-sortfld='name']");
         expect($sort.length).toBe(1);
         expect($sort.find("span.column-label").text()).toBe("Name");
+        expect($sort.find("span.column-label").attr("title")).toBe("Name");
     });
 
     it("skips hidden columns", () => {
