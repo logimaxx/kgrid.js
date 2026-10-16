@@ -163,6 +163,18 @@ div.save-item {
 .custom-table-shell[data-interaction="view"] .clone-item {
   display: none;
 }
+/* Actions with `visible` stay available in view mode; the row hides them via .kgrid-action-off. */
+.custom-table-shell[data-interaction="view"] .kgrid-action-conditional:not(.kgrid-action-off) > .delete-item,
+.custom-table-shell[data-interaction="view"] .kgrid-action-conditional:not(.kgrid-action-off) > .clone-item {
+  display: inline-block;
+}
+.custom-table-shell[data-interaction="view"] .dropdown-menu .kgrid-action-conditional:not(.kgrid-action-off) > .delete-item,
+.custom-table-shell[data-interaction="view"] .dropdown-menu .kgrid-action-conditional:not(.kgrid-action-off) > .clone-item {
+  display: block;
+}
+.kgrid-action-off {
+  display: none !important;
+}
 .custom-table-shell[data-interaction="edit"] .cell-input,
 .custom-table-shell[data-interaction="edit"] .delete-item,
 .custom-table-shell[data-interaction="edit"] .clone-item {

@@ -83,6 +83,42 @@ describe("KGrid.init", () => {
         expect(instance.loadFromRemote).toHaveBeenCalledOnce();
     });
 
+    it("puts onduplicate on the insert URL only", async () => {
+        const { $host } = mountTableHost();
+        const { instance } = mockKViews();
+
+        await initKGrid(
+            $host,
+            tableOptions({
+                data: undefined,
+                url: "/api/lines?include=product_id",
+                onDuplicate: { action: "update", fields: { qty: "add" } },
+            })
+        );
+
+        expect(instance.setUrl).toHaveBeenCalledWith("/api/lines?include=product_id");
+        expect(instance.setUrl).toHaveBeenCalledWith(
+            "/api/lines?include=product_id&onduplicate=update&update=qty%3Aadd",
+            "insert"
+        );
+    });
+
+    it("rejects an invalid onDuplicate insert config", async () => {
+        const { $host } = mountTableHost();
+        mockKViews();
+
+        await expect(
+            initKGrid(
+                $host,
+                tableOptions({
+                    data: undefined,
+                    url: "/api/lines",
+                    onDuplicate: { action: "update" },
+                })
+            )
+        ).rejects.toThrow(/fields/);
+    });
+
     it("exposes setInteraction and getInteraction on returned API", async () => {
         const { $host } = mountTableHost();
         mockKViews();

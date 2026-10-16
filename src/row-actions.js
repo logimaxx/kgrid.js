@@ -121,6 +121,38 @@
     };
 
     /**
+     * Whether a row action should show for this record.
+     * `visible` omitted → always (view/edit CSS still applies).
+     * Object → every key must equal that attribute (array = any of those values).
+     * Function → `visible(item)`.
+     * @param {Object} record KViews item
+     * @param {Object|Function|null|undefined} visible
+     * @returns {boolean}
+     */
+    CT.rowActionVisible = function (record, visible) {
+        if (visible == null) {
+            return true;
+        }
+        if (typeof visible === "function") {
+            return !!visible(record);
+        }
+        if (!visible || typeof visible !== "object" || Array.isArray(visible)) {
+            return true;
+        }
+        const attrs = (record && record.attributes) || {};
+        return Object.keys(visible).every(function (key) {
+            const expected = visible[key];
+            const actual = attrs[key];
+            if (Array.isArray(expected)) {
+                return expected.some(function (value) {
+                    return String(actual ?? "") === String(value);
+                });
+            }
+            return String(actual ?? "") === String(expected);
+        });
+    };
+
+    /**
      * Resolve and cache rowActions on options.
      * @param {Object} options
      * @param {Object} [handlers]
@@ -326,6 +358,39 @@
         return $btn;
     }
 
+    function markActionHost($host, item, menuItems) {
+        const index = menuItems.indexOf(item);
+        if (index < 0) {
+            return;
+        }
+        $host.attr("data-kgrid-action-index", String(index));
+        if (item.visible != null) {
+            // Hidden until the row record is applied (see applyRowActionVisibility).
+            $host.addClass("kgrid-action-conditional kgrid-action-off");
+        }
+    }
+
+    /**
+     * Show or hide row actions that declare `visible`, for one rendered record.
+     * @param {JQuery} $root data row
+     * @param {Object} record
+     * @param {Object[]} menuItems
+     */
+    CT.applyRowActionVisibility = function ($root, record, menuItems) {
+        if (!$root || !$root.length || !menuItems) {
+            return;
+        }
+        menuItems.forEach(function (action, index) {
+            if (!action || action.visible == null) {
+                return;
+            }
+            const show = CT.rowActionVisible(record, action.visible);
+            $root
+                .find('[data-kgrid-action-index="' + index + '"]')
+                .toggleClass("kgrid-action-off", !show);
+        });
+    };
+
     /** Minimal escape for button text (labels). */
     CT.escapeHtml = CT.escapeHtml || function (str) {
         return String(str)
@@ -368,6 +433,7 @@
                 .appendTo($menuWrap);
             idleItems.forEach(function (item) {
                 const $li = $("<li>").appendTo($menu);
+                markActionHost($li, item, ra.menuItems);
                 const $a = $("<button>")
                     .addClass("dropdown-item")
                     .attr("type", "button")
@@ -408,6 +474,7 @@
                 if (item.when === "always") {
                     $grp.addClass("kgrid-action-always");
                 }
+                markActionHost($grp, item, ra.menuItems);
                 appendButton($grp, item, dataRowFormId);
             });
         }

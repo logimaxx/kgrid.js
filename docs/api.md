@@ -128,7 +128,7 @@ Kebab menus (`rowActions.display: "dropdown"`) use Bootstrap **markup** (`.dropd
 
 ### Low-level setup (advanced / tests)
 
-`setupLabelsHeader`, `setupFilterHeader`, `setupPagingFooter`, `setupNoDataTbody`, `setupNewRecordForm`, `setupDataBody`, `setupCell`, `setupEvents`, `resolveDefaultInteraction`, `getTableInteractionHost`, `applyInteraction`, `uuid`, `anchorRowForm`, `filterFormField`
+`setupLabelsHeader`, `setupFilterHeader`, `setupPagingFooter`, `setupNoDataTbody`, `setupNewRecordForm`, `setupDataBody`, `setupCell`, `setupEvents`, `resolveDefaultInteraction`, `getTableInteractionHost`, `applyInteraction`, `uuid`, `anchorRowForm`, `filterFormField`, `onDuplicateParams`, `applyOnDuplicateToUrl`
 
 ---
 

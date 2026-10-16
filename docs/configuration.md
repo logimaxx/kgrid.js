@@ -135,7 +135,8 @@ Provide **either** a remote URL **or** a local array:
 | `url` | `string` | Primary collection URL (load/list) |
 | `deleteUrl` | `string` | Delete endpoint (per-item: `url/id`) |
 | `updateUrl` | `string` | Update endpoint (per-item: `url/id`) |
-| `insertUrl` | `string` | Insert endpoint (collection URL) |
+| `insertUrl` | `string` | Insert endpoint (collection URL). Defaults to `url` |
+| `onDuplicate` | `string \| object` | dbAPI duplicate policy on the insert POST only. `"ignore"`, `"error"`, or `{ action: "update", fields }`. `fields` maps a column to `set` (replace), `add`, or `sub`. Also a list or string: `["qty:add"]`, `"qty:add,notes"`. List/load URL is unchanged. Requires KViews ≥ 1.4.3 so an updated existing id refreshes that row |
 | `data` | `array` | Local rows as plain objects (no `url`) |
 | `type` | `string` | JSON:API resource type (e.g. `products`) — passed to KViews |
 | `kviews` | `object` | Optional KViews override for this table only |
@@ -208,6 +209,12 @@ onClone: "cloneRow",
 | `delete` | `fas fa-trash` | idle | `deleteConfirm` then `item.delete()` |
 | `save` / `cancel` | save / undo | editing | **Not listed in `items`** — added when `features.update` |
 
+**Per record:** `visible` shows that action only when the row matches. Omit it and the action follows view/edit CSS as before. An object compares attributes (`{ state: "DRAFT" }`; an array matches any value). A function receives the KViews item and returns boolean. Matching actions stay available in **view** mode (list screens). Optional `confirm` is the delete prompt for that action.
+
+```javascript
+{ action: "delete", title: "Șterge ciorna", confirm: "Anulați ciorna?", visible: { state: "DRAFT" } }
+```
+
 `display: "dropdown"` puts idle/menu items in a kebab (Bootstrap classes `.dropdown-toggle` / `.dropdown-menu`). KGrid opens and closes the menu itself (`position: fixed` while open, so the table does not clip it). Click outside or Escape closes it. **`bootstrap.Dropdown` / Popper is not used** and must not be initialized on these toggles — it fights the click handlers. Save / Cancel stay as separate buttons.
 
 **Deprecated:** `features.delete` / `features.clone` still work (shim into `rowActions`) when `rowActions` is omitted. If both are set, `rowActions` wins and KGrid warns.
@@ -244,6 +251,7 @@ CSS on `.custom-table-shell`: `data-interaction="view|edit"`. Optional overrides
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `insertFormRow.position` | `'top' \| 'bottom'` | `'top'` | New-record row position |
+| `onDuplicate` | `string \| object` | — | Insert POST duplicate policy. See [Data source](#data-source). Example: `{ action: "update", fields: { qty: "add" } }` sends `onduplicate=update&update=qty:add` |
 | `onNewItemCreated` | `function(data, form)` | — | After successful insert (form already reset) |
 | `onInsertRowReady` | `function(form, row)` | — | After insert row DOM is built |
 | `onRowFields` | `function(item, view, table)` | — | After each data row render / field mount |

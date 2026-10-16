@@ -1,0 +1,15 @@
+---
+description: After publishing @logimaxx/kgrid, bump MaxxOps to that version in the same task
+alwaysApply: true
+---
+
+# MaxxOps consumes this release
+
+After you publish `@logimaxx/kgrid`, update the MaxxOps checkout in the same task so it resolves to that version. A caret that already allows it is not enough.
+
+In sibling `maxxops_latest` (or the workspace checkout), `src/frontend`:
+
+- `"kgrid": "npm:@logimaxx/kgrid@^X.Y.Z"`
+- refresh the lockfile with npm
+
+Do not point MaxxOps at `file:` or a local tarball. If that checkout is not available, say so and name `src/frontend/package.json`.

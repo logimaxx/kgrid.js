@@ -99,6 +99,7 @@ Per-table override: pass `deleteConfirm` in `init(host, { deleteConfirm, ... })`
 **Data:** exactly one of:
 
 - Remote: `url` (+ optional `updateUrl`, `deleteUrl`, `insertUrl`) + `type` (JSON:API resource type)
+- Insert duplicate policy: `onDuplicate: { action: "update", fields: { qty: "add" } }` (also `"ignore"` / `"error"`, or `fields` as `"qty:add,notes"`). Appended to the insert URL only (`onduplicate` + `update`). `add` / `sub` are numeric. KViews ≥ 1.4.3 reloads the existing row when the response id is already in the collection.
 - Local: `data: [{ id, name, ... }]` (plain objects; KGrid wraps as `{ attributes }`)
 
 **Features** (all default `false`):
@@ -117,7 +118,7 @@ features: { filtering, sorting, paging, create, update, delete, columnChooser }
 - `emptyRowMessage`, `pagingPageSizes`, `pagingDefaultSize`, `pagingFooterLabel`
 - `noDataTemplate` — HTML for empty tbody (often `colspan` large, e.g. `99`)
 
-**Insert row:** `insertFormRow: { position: "top" | "bottom" }`, `onNewItemCreated(data, form)`, `onInsertRowReady(form, row)`
+**Insert row:** `insertFormRow: { position: "top" | "bottom" }`, `onDuplicate`, `onNewItemCreated(data, form)`, `onInsertRowReady(form, row)`
 
 **Row lifecycle:** `onRowFields(item, view, table)` — called after each data row’s `afterrender` / field mount (per-row enable/disable, show/hide).
 
@@ -171,7 +172,7 @@ When `KGrid.hasActionColumn(options)`:
 
 - Trailing column: `.kgrid-row-actions` on `th`/`td`
 - `<colgroup>` with `col.kgrid-row-actions-col` (synced at init)
-- **View mode:** column collapsed unless `data-has-row-menu` (idle menu actions present) — full width for data columns when collapsed
+- **View mode:** column collapsed unless `data-has-row-menu` (idle menu actions present) — full width for data columns when collapsed. Builtin delete/clone stay hidden in view unless the item sets `visible` (attribute map or function); matching rows then show the button. `confirm` overrides the delete prompt for that item.
 - **Edit mode:** column visible — menu/idle actions + save/cancel; insert row submit in `.new-record-row`
 - **Dropdown mode:** `.kgrid-row-actions-menu` for idle items; save/cancel stay as buttons. Menu is `position:fixed` while open (not Bootstrap Dropdown / Popper). Do not call `bootstrap.Dropdown` on `.kgrid-actions-dropdown-toggle`.
 

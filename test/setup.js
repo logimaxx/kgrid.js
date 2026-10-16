@@ -49,6 +49,8 @@ function loadKGridSource() {
         Error,
         TypeError,
         JSON,
+        encodeURIComponent,
+        decodeURIComponent,
         FormData,
         localStorage: globalThis.localStorage,
         setTimeout: (...args) => globalThis.setTimeout(...args),

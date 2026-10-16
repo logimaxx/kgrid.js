@@ -13,6 +13,26 @@ function countVisibleDataColumns(options) {
     return options.columns.filter((col) => !col.hidden).length;
 }
 
+describe("rowActionVisible", () => {
+    it("is true when visible is omitted", () => {
+        expect(KGrid.rowActionVisible({ attributes: { state: "ISSUED" } }, undefined)).toBe(true);
+    });
+
+    it("matches attribute equality and any-of lists", () => {
+        const draft = { attributes: { state: "DRAFT", status: "DRAFT" } };
+        const issued = { attributes: { state: "ISSUED" } };
+        expect(KGrid.rowActionVisible(draft, { state: "DRAFT" })).toBe(true);
+        expect(KGrid.rowActionVisible(issued, { state: "DRAFT" })).toBe(false);
+        expect(KGrid.rowActionVisible(issued, { state: ["DRAFT", "ISSUED"] })).toBe(true);
+        expect(KGrid.rowActionVisible(draft, { state: "DRAFT", status: "OPEN" })).toBe(false);
+    });
+
+    it("calls a function predicate", () => {
+        const item = { attributes: { state: "DRAFT" } };
+        expect(KGrid.rowActionVisible(item, (row) => row.attributes.state === "DRAFT")).toBe(true);
+    });
+});
+
 describe("row actions column", () => {
     it("aligns header and data row for update-only", () => {
         const opts = tableOptions({
@@ -117,5 +137,32 @@ describe("row actions column", () => {
         const filterCount = $table.find(".thead-filters th").length;
         expect(filterCount).toBe(labelCount);
         expect($table.find(".thead-filters th.kgrid-row-actions").length).toBe(1);
+    });
+
+    it("marks visible actions hidden until the record matches", () => {
+        const opts = tableOptions({
+            rowActions: {
+                items: [{ action: "delete", visible: { state: "DRAFT" } }],
+            },
+            columns: [column("state")],
+        });
+        const { $table } = mountTableShell();
+        KGrid.setupDataBody(
+            $table.find(".main-tbody"),
+            opts,
+            $table.find(".thead-labels tr"),
+            null,
+            null,
+            $table.find(".no-data-tbody")
+        );
+        const $host = $table.find("[data-kgrid-action-index]");
+        expect($host.hasClass("kgrid-action-conditional")).toBe(true);
+        expect($host.hasClass("kgrid-action-off")).toBe(true);
+
+        const $row = $("<tr>").append($host);
+        KGrid.applyRowActionVisibility($row, { attributes: { state: "DRAFT" } }, opts._resolvedRowActions.menuItems);
+        expect($host.hasClass("kgrid-action-off")).toBe(false);
+        KGrid.applyRowActionVisibility($row, { attributes: { state: "ISSUED" } }, opts._resolvedRowActions.menuItems);
+        expect($host.hasClass("kgrid-action-off")).toBe(true);
     });
 });

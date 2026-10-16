@@ -242,8 +242,12 @@
                 CT.log("set updateUrl", options.updateUrl);
                 api.instance.setUrl(options.updateUrl, "update");
             }
-            if (options.insertUrl) {
-                api.instance.setUrl(options.insertUrl, "insert");
+            const insertBase = options.insertUrl || options.url;
+            const insertTarget = options.onDuplicate
+                ? CT.applyOnDuplicateToUrl(insertBase, options.onDuplicate)
+                : options.insertUrl;
+            if (insertTarget) {
+                api.instance.setUrl(insertTarget, "insert");
             }
             if (savedView && options.features && options.features.sorting) {
                 CT.applySavedSort(api.instance, options, savedView);

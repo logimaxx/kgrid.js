@@ -36,6 +36,13 @@
         "insertFormRow": {
             "position": "top"
         },
+        /**
+         * dbAPI POST duplicate policy. null leaves the insert URL unchanged.
+         * String: "error" | "ignore" | "update".
+         * Object: { action, fields }. fields is required for action "update".
+         *   { qty: "add" } | ["qty:add"] | "qty:add" — operators set | add | sub.
+         */
+        onDuplicate: null,
         "tableAttrs": {
             "class": ""
         },

@@ -90,6 +90,7 @@
         }
 
         const ra = CT.resolveRowActions(options);
+        CT.applyRowActionVisibility(view.el, item, ra.menuItems);
         CT.mountRowActionDropdowns(view.el);
         const hasClone = ra.menuItems.some((it) => it.action === "clone");
         const hasDelete = ra.menuItems.some((it) => it.action === "delete");
@@ -110,8 +111,18 @@
                 event.stopPropagation();
                 view.el.addClass("confirm-delete");
                 const clearConfirmState = () => view.el.removeClass("confirm-delete");
-                CT.runDeleteConfirm(
-                    { item, view, options },
+                const indexAttr = $(event.currentTarget)
+                    .closest("[data-kgrid-action-index]")
+                    .attr("data-kgrid-action-index");
+                const action =
+                    indexAttr != null ? ra.menuItems[Number(indexAttr)] : null;
+                const message =
+                    action && typeof action.confirm === "string" ? action.confirm : null;
+                const ask = message
+                    ? (ok, cancel) => CT.confirm(message, ok, cancel)
+                    : (ok, cancel) =>
+                          CT.runDeleteConfirm({ item, view, options }, ok, cancel);
+                ask(
                     () => {
                         item.delete().catch(CT.onError).finally(clearConfirmState);
                     },

@@ -50,6 +50,46 @@ describe("constants", () => {
         });
     });
 
+    it("builds onduplicate query params with field operators", () => {
+        expect(KGrid.onDuplicateParams("ignore")).toEqual({ onduplicate: "ignore" });
+        expect(
+            KGrid.onDuplicateParams({
+                action: "update",
+                fields: { qty: "add", notes: "set" },
+            })
+        ).toEqual({ onduplicate: "update", update: "qty:add,notes" });
+        expect(KGrid.onDuplicateParams({ action: "update", fields: "qty:add,price:sub" })).toEqual({
+            onduplicate: "update",
+            update: "qty:add,price:sub",
+        });
+    });
+
+    it("appends onduplicate to the insert URL and keeps existing params", () => {
+        expect(
+            KGrid.applyOnDuplicateToUrl("/lines?include=product_id", {
+                action: "update",
+                fields: { qty: "add" },
+            })
+        ).toBe("/lines?include=product_id&onduplicate=update&update=qty%3Aadd");
+    });
+
+    it("replaces a previous onduplicate pair on the insert URL", () => {
+        expect(
+            KGrid.applyOnDuplicateToUrl(
+                "/lines?onduplicate=update&update=qty%3Aadd&include=product_id",
+                "ignore"
+            )
+        ).toBe("/lines?include=product_id&onduplicate=ignore");
+    });
+
+    it("rejects an update without fields and an unknown operator", () => {
+        expect(() => KGrid.onDuplicateParams({ action: "update" })).toThrow(/fields/);
+        expect(() => KGrid.onDuplicateParams({ action: "update", fields: { qty: "mul" } })).toThrow(
+            /operator/
+        );
+        expect(() => KGrid.onDuplicateParams("upsert")).toThrow(/action/);
+    });
+
     it("lists valid input and filter types", () => {
         expect(KGrid.VALID_INPUT_TYPES).toContain("text");
         expect(KGrid.VALID_FILTER_TYPES).toContain("date");
