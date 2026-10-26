@@ -23,12 +23,18 @@
 
   border-bottom-left-radius: var(--bs-border-radius-lg, 0.5rem);
   border-bottom-right-radius: var(--bs-border-radius-lg, 0.5rem);
+  /* Card mode follows the shell width, not the viewport: a grid in a narrow
+     panel gets cards on a wide screen. The shell must not be shrink-to-fit. */
+  container: kgrid / inline-size;
 }
 
 @media (max-width: 768px) {
   .card-body {
     padding: 10px;
   }
+}
+
+@container kgrid (max-width: 640px) {
   .custom-table-shell table,
   .custom-table-shell thead,
   .custom-table-shell tbody,
@@ -63,6 +69,17 @@
     margin-bottom: 6px;
     padding-bottom: 4px;
     border-bottom: 1px solid var(--kgrid-row-border);
+  }
+  /* View mode: label beside the value. Edit inputs (width: 100%) drop below the label. */
+  .custom-table-shell[data-interaction="view"] td {
+    display: flow-root;
+  }
+  .custom-table-shell[data-interaction="view"] td:not(.kgrid-row-actions)::before {
+    float: left;
+    width: 38%;
+    margin: 0 0.75rem 0 0;
+    padding: 0;
+    border-bottom: 0;
   }
 
   .custom-table-shell td input,
@@ -430,7 +447,7 @@ td.kgrid-user-hidden {
   padding: var(--kgrid-cell-pad-y) var(--kgrid-cell-pad-x);
 }
 
-@media (min-width: 769px) {
+@container kgrid (min-width: 641px) {
   table.custom-table {
     border-collapse: separate !important;
     border-spacing: 0 !important;
