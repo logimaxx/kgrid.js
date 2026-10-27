@@ -16,11 +16,12 @@ After `npm install`, the template is inside the built bundle (`dist/kgrid.js`). 
 
 ```
 .custom-table-shell          ← class added on host if missing
-  .kgrid-column-chooser      ← when features.columnChooser
+                             ← data-has-column-chooser when features.columnChooser
   table.custom-table
     colgroup.kgrid-colgroup  ← injected at init (data cols + optional row-actions col)
     thead.thead-labels       ← one <th> template; cloned per column in labels.js
                              ← label text also sets title (full name on hover when clipped)
+                             ← trailing th.kgrid-row-actions holds .kgrid-column-chooser (gear)
     thead.thead-filters      ← filter inputs (if features.filtering)
     tbody.before-main-tbody  ← insert row when position: top
     tbody.main-tbody         ← KViews collection rows

@@ -5,7 +5,7 @@ alwaysApply: true
 
 # MaxxOps consumes this release
 
-After you publish `@logimaxx/kgrid`, update the MaxxOps checkout in the same task so it resolves to that version. A caret that already allows it is not enough.
+A version bump includes the git commit, push, tag, and `npm publish` (`publish-release-tag.mdc`). After `npm view @logimaxx/kgrid@X.Y.Z version` succeeds, update the MaxxOps checkout in the same task so it resolves to that version. A caret that already allows it is not enough. Do not point MaxxOps at a version that is not on npm.
 
 In sibling `maxxops_latest` (or the workspace checkout), `src/frontend`:
 

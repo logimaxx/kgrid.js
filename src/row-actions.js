@@ -216,7 +216,7 @@
      */
     CT.hasActionColumn = function (options) {
         const f = options && options.features;
-        if (f && f.create) {
+        if (f && (f.create || f.columnChooser)) {
             return true;
         }
         const ra = CT.resolveRowActions(options);

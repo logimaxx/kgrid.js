@@ -633,7 +633,12 @@ describe("column chooser UI", () => {
             })
         );
         const $items = $host.find(".kgrid-column-chooser-list li");
+        const $chooser = $host.find(".thead-labels th.kgrid-row-actions .kgrid-column-chooser");
+        expect($chooser.length).toBe(1);
         expect($host.find(".kgrid-column-chooser").length).toBe(1);
+        expect($host.attr("data-has-column-chooser")).toBe("true");
+        expect($chooser.find(".kgrid-column-chooser-toggle .fa-cog").length).toBe(1);
+        expect($chooser.find(".kgrid-column-chooser-toggle-label").length).toBe(0);
         expect($items.length).toBe(2);
         expect($items.eq(0).attr("data-name")).toBe("name");
         expect($items.eq(0).find("input").prop("disabled")).toBe(true);

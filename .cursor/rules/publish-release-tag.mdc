@@ -1,0 +1,16 @@
+---
+description: A KGrid version bump includes commit, push, the git tag, and npm publish
+alwaysApply: true
+---
+
+# Publish the release tag
+
+A `@logimaxx/kgrid` version bump is not done until the version commit, the git tag, and the npm package are all published. There is no workflow that publishes on tag push. `./version.sh` pushes the tag and does not run `npm publish`.
+
+This is standing permission to commit and push for a KGrid version bump. Do it in the same task, without asking again.
+
+1. `npm run release` (tests + build). If `dist/` changed, commit that first.
+2. `npm version patch|minor|major` (or `./version.sh`), which commits `package.json` and creates the tag.
+3. Push the branch and the tag: `git push && git push --tags`.
+4. `npm publish`. Confirm `npm view @logimaxx/kgrid@X.Y.Z version`.
+5. Only then bump MaxxOps (`consume-in-maxxops.mdc`). Do not point MaxxOps at a version that is not on npm.

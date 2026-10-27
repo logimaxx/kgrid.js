@@ -105,7 +105,7 @@ const grid = await KGrid.init(document.getElementById("table-host"), {
 | `KGrid.configure(opts)` | Host hooks (`deleteConfirm`, `kviews`, `customInputTypes`, …) |
 | `KGrid.init(host, opts)` | Empty host or existing `<table>`; returns grid API |
 | `KGrid.TABLE_SHELL_TEMPLATE` | Default table HTML (editable) |
-| `KGrid.hasActionColumn(opts)` | Whether a trailing row-actions column is rendered |
+| `KGrid.hasActionColumn(opts)` | Whether a trailing row-actions column is rendered (CRUD actions and/or column-chooser gear) |
 | `opts.rowActions` | `{ display, items }` for delete/clone/custom; kebab menus are KGrid-toggled (`position:fixed`), not Bootstrap Dropdown |
 | `KGrid.registerFieldType(name, plugin)` | Custom filter/insert/update widgets |
 | `grid.setInteraction('view' \| 'edit')` | View or edit; menu actions can stay visible in view |

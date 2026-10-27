@@ -104,25 +104,26 @@
         }
         const $shell = CT.getTableInteractionHost($host);
         $shell.find(".kgrid-column-chooser").remove();
+        const $th = $shell.find(".thead-labels th.kgrid-row-actions").first();
+        if (!$th.length) {
+            return;
+        }
+        $shell.attr("data-has-column-chooser", "true");
         const label = options.columnChooserLabel || "Columns";
         const $wrap = $("<div>").addClass("kgrid-column-chooser");
         const $btn = $("<button>")
             .attr("type", "button")
             .addClass("kgrid-column-chooser-toggle btn btn-sm btn-outline-secondary")
             .attr("title", label)
+            .attr("aria-label", label)
             .attr("aria-expanded", "false")
             .attr("aria-haspopup", "true")
-            .html(
-                '<i class="fas fa-table-columns" aria-hidden="true"></i>' +
-                    '<span class="kgrid-column-chooser-toggle-label"> ' +
-                    $("<div>").text(label).html() +
-                    "</span>"
-            );
+            .html('<i class="fas fa-cog" aria-hidden="true"></i>');
         const $panel = $("<div>")
             .addClass("kgrid-column-chooser-panel")
             .attr("hidden", "hidden");
         $wrap.append($btn, $panel);
-        $shell.prepend($wrap);
+        $th.append($wrap);
         CT.renderColumnChooserPanel($panel, options, api);
 
         function close() {

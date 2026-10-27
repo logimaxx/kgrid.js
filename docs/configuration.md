@@ -166,8 +166,8 @@ features: {
 |--------|------|-------------|
 | `storageKey` | `string` | Persist layout (order + user-hidden), filter values, sort, and paging. Layout key: `kgrid:{storageKey}:layout`. Filters: `kgrid:{storageKey}:filters`. Sort and page size / offset: `kgrid:{storageKey}:view`. Scope suffix applies to filters and view, not layout. |
 | `filterStorageScope` | `string` | Suffix for saved filters, sort, and paging (e.g. company id). Column layout is shared across scopes. |
-| `features.columnChooser` | `boolean` | Columns panel (checkbox + drag). Works without `storageKey` (session only). |
-| `columnChooserLabel` | `string` | Button label (default `"Columns"`) |
+| `features.columnChooser` | `boolean` | Columns panel (checkbox + drag) opened from a gear icon in the trailing `th.kgrid-row-actions`. Ensures the actions column exists. Works without `storageKey` (session only). |
+| `columnChooserLabel` | `string` | Gear button `title` / `aria-label` (default `"Columns"`) |
 | `columnChooserResetLabel` | `string` | Reset button (default `"Reset columns"`) |
 | `preferencesStorage` | `{ get, set }` | Per-table override of `configure({ preferencesStorage })`; default `localStorage` |
 
@@ -221,15 +221,15 @@ onClone: "cloneRow",
 
 ```javascript
 KGrid.hasActionColumn(options)
-// true when create, or any resolved menu/editing action exists
+// true when create, columnChooser, or any resolved menu/editing action exists
 ```
 
 | Markup | Role |
 |--------|------|
-| `th` / `td.kgrid-row-actions` | Header, filters, data rows |
+| `th` / `td.kgrid-row-actions` | Header (gear when `columnChooser`), filters, data rows |
 | `colgroup col.kgrid-row-actions-col` | Width control for `table-layout: fixed` (added at init via `syncActionColumnColgroup`) |
 
-**View vs edit:** In **view** mode, the row-actions column collapses **unless** there are idle menu actions (`rowActions.items` / shimmed delete·clone) — then the column stays visible so list screens can delete/clone without entering edit. Save / Cancel still only appear while a row is `.editing`. In **edit** mode, width comes from `KGrid.actionColumnWidth(options)`.
+**View vs edit:** In **view** mode, the row-actions column collapses **unless** there are idle menu actions (`rowActions.items` / shimmed delete·clone) or `features.columnChooser` — then the column stays visible so list screens can delete/clone / open the column panel without entering edit. Save / Cancel still only appear while a row is `.editing`. In **edit** mode, width comes from `KGrid.actionColumnWidth(options)`.
 
 Do not use a fake data column named `actions` with HTML button templates — use `rowActions` + `handlers` instead.
 

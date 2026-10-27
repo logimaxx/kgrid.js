@@ -114,7 +114,7 @@ See **[table-shell.md](table-shell.md)** for structure, placeholders, and custom
 
 | Symbol | Description |
 |--------|-------------|
-| `KGrid.hasActionColumn(options)` | `true` when `features.create`, or resolved `rowActions` / shimmed delete·clone / `features.update` (save/cancel) |
+| `KGrid.hasActionColumn(options)` | `true` when `features.create`, `features.columnChooser`, or resolved `rowActions` / shimmed delete·clone / `features.update` (save/cancel) |
 | `KGrid.actionColumnWidth(options)` | Compact CSS width for the actions column under `table-layout: fixed` |
 | `KGrid.resolveRowActions(options, handlers?)` | Normalize `rowActions` (or shim from features); caches on `options` |
 | `KGrid.renderRowActions($td, options, formId?)` | Fill a data-row actions cell (buttons or kebab dropdown) |

@@ -232,14 +232,15 @@ div.save-item {
   display: inline-flex;
 }
 
-/* Row-actions: collapse in view only when there is no idle menu (delete/clone/custom).
-   Menu-only tables stay usable in view; save/cancel remain hidden until .editing. */
-.custom-table-shell[data-interaction="view"]:not([data-has-row-menu="true"]) col.kgrid-row-actions-col {
+/* Row-actions: collapse in view only when there is no idle menu (delete/clone/custom)
+   and no column-chooser gear in the header. Menu-only / chooser tables stay usable
+   in view; save/cancel remain hidden until .editing. */
+.custom-table-shell[data-interaction="view"]:not([data-has-row-menu="true"]):not([data-has-column-chooser="true"]) col.kgrid-row-actions-col {
   visibility: collapse;
   width: 0 !important;
 }
-.custom-table-shell[data-interaction="view"]:not([data-has-row-menu="true"]) th.kgrid-row-actions,
-.custom-table-shell[data-interaction="view"]:not([data-has-row-menu="true"]) td.kgrid-row-actions {
+.custom-table-shell[data-interaction="view"]:not([data-has-row-menu="true"]):not([data-has-column-chooser="true"]) th.kgrid-row-actions,
+.custom-table-shell[data-interaction="view"]:not([data-has-row-menu="true"]):not([data-has-column-chooser="true"]) td.kgrid-row-actions {
   visibility: collapse;
   width: 0 !important;
   max-width: 0;
@@ -254,7 +255,9 @@ div.save-item {
 .custom-table-shell[data-interaction="edit"] th.kgrid-row-actions,
 .custom-table-shell[data-interaction="edit"] td.kgrid-row-actions,
 .custom-table-shell[data-has-row-menu="true"] th.kgrid-row-actions,
-.custom-table-shell[data-has-row-menu="true"] td.kgrid-row-actions {
+.custom-table-shell[data-has-row-menu="true"] td.kgrid-row-actions,
+.custom-table-shell[data-has-column-chooser="true"] th.kgrid-row-actions,
+.custom-table-shell[data-has-column-chooser="true"] td.kgrid-row-actions {
   white-space: nowrap;
   overflow: visible;
 }
@@ -304,20 +307,30 @@ td.kgrid-user-hidden {
   display: none !important;
 }
 
+/* Column chooser: gear in trailing header cell (.kgrid-row-actions) */
+th.kgrid-row-actions {
+  text-align: center;
+  vertical-align: middle;
+}
 .kgrid-column-chooser {
   position: relative;
-  display: flex;
-  justify-content: flex-end;
-  padding: 0.25rem 0.5rem;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+}
+.kgrid-column-chooser-toggle {
+  padding: 0.15rem 0.4rem;
+  line-height: 1;
 }
 .kgrid-column-chooser-panel {
   position: absolute;
-  right: 0.5rem;
+  right: 0;
   top: 100%;
   z-index: 20;
   min-width: 16rem;
   max-height: 20rem;
   overflow: auto;
+  text-align: start;
   background: var(--bs-body-bg, #fff);
   color: var(--bs-body-color, #212529);
   border: 1px solid var(--bs-border-color, #dee2e6);
