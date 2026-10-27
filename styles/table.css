@@ -322,11 +322,12 @@ th.kgrid-row-actions {
   padding: 0.15rem 0.4rem;
   line-height: 1;
 }
+/* Default absolute; open state uses position:fixed (inline) to escape table/card overflow. */
 .kgrid-column-chooser-panel {
   position: absolute;
   right: 0;
   top: 100%;
-  z-index: 20;
+  z-index: 1055;
   min-width: 16rem;
   max-height: 20rem;
   overflow: auto;

@@ -644,4 +644,26 @@ describe("column chooser UI", () => {
         expect($items.eq(0).find("input").prop("disabled")).toBe(true);
         expect($items.filter("[data-name='id']").length).toBe(0);
     });
+
+    it("opens the column chooser panel with position:fixed to escape overflow", async () => {
+        const { $host } = mountTableHost();
+        mockKViews();
+        await initKGrid(
+            $host,
+            tableOptions({
+                features: { columnChooser: true },
+                columns: [column("name", { label: "Name" }), column("sku", { label: "SKU" })],
+            })
+        );
+        const $panel = $host.find(".kgrid-column-chooser-panel");
+        const $btn = $host.find(".kgrid-column-chooser-toggle");
+        expect($panel.attr("hidden")).toBe("hidden");
+        $btn.trigger("click");
+        expect($panel.attr("hidden")).toBeUndefined();
+        expect($panel.css("position")).toBe("fixed");
+        expect($btn.attr("aria-expanded")).toBe("true");
+        $btn.trigger("click");
+        expect($panel.attr("hidden")).toBe("hidden");
+        expect($panel.css("position")).not.toBe("fixed");
+    });
 });

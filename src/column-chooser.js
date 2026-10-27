@@ -126,26 +126,55 @@
         $th.append($wrap);
         CT.renderColumnChooserPanel($panel, options, api);
 
+        function clearPanelPosition() {
+            $panel.css({ top: "", left: "", right: "", position: "", zIndex: "" });
+        }
+
+        function placePanel() {
+            const rect = $btn[0].getBoundingClientRect();
+            $panel.css({
+                position: "fixed",
+                top: Math.round(rect.bottom + 2) + "px",
+                left: "auto",
+                right: Math.round(window.innerWidth - rect.right) + "px",
+                zIndex: 1055,
+            });
+        }
+
         function close() {
             $panel.attr("hidden", "hidden");
             $btn.attr("aria-expanded", "false");
+            clearPanelPosition();
+        }
+
+        function open() {
+            $panel.removeAttr("hidden");
+            $btn.attr("aria-expanded", "true");
+            // Escape overflow:hidden / overflow:auto ancestors (same pattern as row-actions kebab).
+            placePanel();
         }
 
         $btn.on("click", function (e) {
             e.stopPropagation();
-            const open = !$panel.attr("hidden");
-            if (open) {
+            if (!$panel.attr("hidden")) {
                 close();
             } else {
-                $panel.removeAttr("hidden");
-                $btn.attr("aria-expanded", "true");
+                open();
             }
         });
 
+        // Keep panel under the gear while the page scrolls/resizes.
         const ns = "kgridChooser" + CT.uuid();
+        $(window).on("scroll." + ns + " resize." + ns, function () {
+            if ($panel.attr("hidden")) {
+                return;
+            }
+            placePanel();
+        });
         $(document).on("pointerdown." + ns, function (e) {
             if (!document.body.contains($wrap[0])) {
-                $(document).off("pointerdown." + ns);
+                $(document).off("." + ns);
+                $(window).off("." + ns);
                 return;
             }
             if (!$wrap[0].contains(e.target)) {
