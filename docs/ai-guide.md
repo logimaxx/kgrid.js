@@ -251,7 +251,7 @@ Deprecated: `setEditMode`, `toggleEditMode` — use `setInteraction`.
 12. **Breaking class names** — `custom-table-shell`, `data-interaction`, `main-tbody`, `kgrid-row-actions` are required by CSS and KViews wiring.
 13. **Emitting a `<col>` for a user-hidden column** — `display:none` cells skip that slot; leftover cols remap widths. Colgroup lists only participating columns. Do not set `width` on `th`/`td`.
 14. **Init `bootstrap.Dropdown` on kebab toggles** — KGrid already binds the menu (`mountRowActionDropdowns`); Bootstrap Dropdown / Popper clips or swallows item clicks.
-15. **Shrink-to-fit shell** — `.custom-table-shell` is an inline-size container (`kgrid`); card mode applies when the shell is ≤ 640px wide, whatever the viewport. Inside `inline-block`, a float, or a flex item without a width, the shell collapses. Host overrides for card mode use `@container kgrid (max-width: 640px)`, not a viewport `@media`.
+15. **Shrink-to-fit shell** — `.custom-table-shell` is an inline-size container (`kgrid`); card mode applies when the shell is ≤ 640px wide, whatever the viewport. Inside `inline-block`, a float, or a flex item without a width, the shell collapses. Host overrides for card mode use `@container kgrid (max-width: 640px)`, not a viewport `@media`. Card mode still shows sort links and filter fields; do not hide `.thead-labels` / `.thead-filters`.
 
 ---
 

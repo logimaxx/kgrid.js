@@ -44,10 +44,6 @@
     display: block;
   }
 
-  .custom-table-shell thead {
-    display: none;
-  }
-
   .custom-table-shell tr {
     margin-top: 0.5rem;
     border: 1px solid var(--kgrid-row-border);
@@ -115,6 +111,80 @@
   .custom-table-shell th.kgrid-user-hidden,
   .custom-table-shell td.kgrid-user-hidden {
     display: none;
+  }
+
+  /* Sort links and filter controls stay usable. Column-name headers that
+     are not sortable stay hidden — each data cell already shows data-label.
+     Empty filter cells (no control) stay hidden so the card is only fields. */
+  .custom-table-shell .thead-labels tr,
+  .custom-table-shell .thead-filters tr {
+    display: flex;
+    flex-direction: column;
+    padding: 0.35rem 0.85rem 0.55rem;
+  }
+  .custom-table-shell .thead-labels th,
+  .custom-table-shell .thead-filters th {
+    padding: 0.4rem 0;
+    border: 0;
+    background: transparent;
+    white-space: normal;
+    overflow: visible;
+  }
+  .custom-table-shell .thead-labels th:not(:has(a.sort)):not(.kgrid-row-actions) {
+    display: none;
+  }
+  .custom-table-shell .thead-labels:not(:has(th:not(.kgrid-user-hidden) a.sort)):not(:has(.kgrid-column-chooser)) {
+    display: none;
+  }
+  .custom-table-shell .thead-labels th a.sort {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    min-height: 2rem;
+  }
+  .custom-table-shell .thead-labels th a.sort .column-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .custom-table-shell .thead-labels th a.sort i {
+    flex: 0 0 auto;
+  }
+  .custom-table-shell .thead-labels th.kgrid-row-actions {
+    display: flex;
+    justify-content: flex-end;
+    order: -1;
+    padding-bottom: 0.15rem;
+  }
+  .custom-table-shell .thead-labels th.kgrid-row-actions:not(:has(.kgrid-column-chooser)) {
+    display: none;
+  }
+  .custom-table-shell .thead-filters th:not(:has(input, select, textarea, button)) {
+    display: none;
+  }
+  .custom-table-shell .thead-filters:not(:has(th:not(.kgrid-user-hidden) :is(input, select, textarea, button))) {
+    display: none;
+  }
+  .custom-table-shell .thead-filters th::before {
+    content: attr(data-label);
+    display: block;
+    font-weight: 600;
+    font-size: 0.78rem;
+    color: var(--kgrid-muted);
+    margin-bottom: 0.35rem;
+  }
+  .custom-table-shell .thead-filters th input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+  .custom-table-shell .thead-filters th select,
+  .custom-table-shell .thead-filters th textarea,
+  .custom-table-shell .thead-filters th .form-control,
+  .custom-table-shell .thead-filters th .form-select,
+  .custom-table-shell .thead-filters th .kgrid-multi-select,
+  .custom-table-shell .thead-filters th .select2-container {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
   }
 }
 
@@ -440,6 +510,17 @@ th.kgrid-row-actions {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+/* Card mode is declared earlier; these header rules would otherwise
+   paint a desktop header bar and clip the sort icon. */
+@container kgrid (max-width: 640px) {
+  .custom-table-shell .custom-table .thead-labels th,
+  .custom-table-shell .custom-table .thead-filters th {
+    background-color: transparent;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+  }
 }
 .custom-table .thead-labels th a {
   color: var(--kgrid-header-link);

@@ -97,6 +97,7 @@ Simplest path: put your table inside the host before init — KGrid detects it a
 ## Styling and icons
 
 - Include `styles/table.css` from the package (required for view/edit modes, row-actions column collapse, user-hidden columns, and kebab `.dropdown-menu.show`).
+- Card mode (shell ≤ 640px) stacks each row. Sort links (`.thead-labels a.sort`) and filter controls (`.thead-filters`) stay above the cards; header cells that are not sortable and filter cells with no control stay hidden.
 - The default template uses **Bootstrap** button classes (`btn`, `btn-sm`, …) and **Font Awesome** sort icons (`fa-sort`, `fa-sort-up`, `fa-sort-down`). Load both in the host page, or edit the template to match your design system. Kebab `rowActions` reuse those classes; the open/close behavior is KGrid’s, not `bootstrap.Dropdown`.
 
 If you provide your own `<table>` in the host, call `KGrid.init` as usual — `syncActionColumnColgroup` still runs when row actions are enabled.
