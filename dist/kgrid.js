@@ -1,4 +1,4 @@
-/*! @logimaxx/kgrid | (c) Logimaxx System SRL — proprietary | https://logimaxx.ro | built 2026-10-27T05:08:32.707Z */
+/*! @logimaxx/kgrid | (c) Logimaxx System SRL — proprietary | https://logimaxx.ro | built 2026-10-27T05:13:31.181Z */
 
 /* --- configure.js --- */
 /**
