@@ -112,6 +112,36 @@ Friendly multi-value control: a compact toggle in the filter row opens a panel o
 
 Produces filter expressions like `state><DRAFT;PICKED`.
 
+### `date_range` — from / to (filter only)
+
+Two date inputs in the filter cell. Each bound is its own hidden field with the column name, so KViews emits two filter clauses. `filter.operator` is ignored.
+
+| Concern | Behavior |
+|---------|----------|
+| From | `field>=YYYY-MM-DD` when set |
+| To | `field<=YYYY-MM-DD 23:59:59` when set (the whole end day on a DATETIME column; the same calendar day on a DATE column) |
+| Empty side | omitted |
+| Both empty | no filter on that column |
+| Order | if To is before From, To is moved to From |
+| Labels | `From` / `To`, or `filter.fromLabel` / `filter.toLabel` |
+| Default | `{ from, to }` calendar dates; either side may be omitted |
+
+```javascript
+{
+  name: "posted_at",
+  filter: {
+    type: "date_range",
+    fromLabel: "De la",
+    toLabel: "Până la",
+    default: { from: "2026-01-01", to: "2026-01-31" },
+  },
+}
+```
+
+Produces `posted_at>=2026-01-01,posted_at<=2026-01-31 23:59:59`.
+
+Insert and update reject `date_range`.
+
 ### `checkbox` — boolean flag toggle
 
 `filter` / `insert` / `update` `{ type: "checkbox" }` is always a **flag**, not a multi-value checkbox group.

@@ -151,20 +151,33 @@
 
     /** Field in filter row (associated via form="" on control, not nested inside <form>). */
     CT.filterFormField = function (formEl, name) {
+        const $fields = CT.filterFormFields(formEl, name);
+        return $fields.length ? $fields.eq(0) : $();
+    };
+
+    /** Every control with this name. Two date-range bounds share a name and differ by operator. */
+    CT.filterFormFields = function (formEl, name) {
         if (!formEl || !name) {
             return $();
         }
-        const el = formEl.elements && formEl.elements.namedItem(name);
-        if (el) {
-            return $(el);
-        }
-        if (formEl.id) {
-            const associated = document.querySelector(`[form="${formEl.id}"][name="${name}"]`);
-            if (associated) {
-                return $(associated);
+        const list = [];
+        const els = formEl.elements;
+        if (els) {
+            for (let i = 0; i < els.length; i++) {
+                if (els[i] && els[i].name === name) {
+                    list.push(els[i]);
+                }
             }
         }
-        return $();
+        if (!list.length && formEl.id) {
+            const nodes = document.querySelectorAll(
+                '[form="' + formEl.id + '"][name="' + name + '"]'
+            );
+            for (let i = 0; i < nodes.length; i++) {
+                list.push(nodes[i]);
+            }
+        }
+        return $(list);
     };
 
     /** Resolved CSS class for a column (`class` or alias `columnClass`). */

@@ -305,12 +305,223 @@
         },
     });
 
+    const DATE_RANGE_VALUE_CLASS = "kgrid-date-range-value";
+
+    /** Calendar day from a date or `YYYY-MM-DD HH:MM:SS` filter value. */
+    CT.dateRangeCalendarDate = function (value) {
+        if (value == null || value === "") {
+            return "";
+        }
+        const match = /^(\d{4}-\d{2}-\d{2})/.exec(String(value).trim());
+        return match ? match[1] : "";
+    };
+
+    /** Inclusive end of a calendar day for DATETIME columns. */
+    CT.dateRangeEndValue = function (date) {
+        return date ? date + " 23:59:59" : "";
+    };
+
+    /**
+     * `{ from, to }` calendar dates. If `to` is before `from`, `to` becomes `from`.
+     * @param {*} spec
+     * @returns {{ from: string, to: string }}
+     */
+    CT.normalizeDateRangeDefault = function (spec) {
+        if (spec == null || typeof spec !== "object" || Array.isArray(spec)) {
+            return { from: "", to: "" };
+        }
+        let from = CT.dateRangeCalendarDate(spec.from);
+        let to = CT.dateRangeCalendarDate(spec.to);
+        if (from && to && to < from) {
+            to = from;
+        }
+        return { from: from, to: to };
+    };
+
+    CT.syncDateRangeVisible = function (hidden) {
+        if (!hidden || !hidden.getAttribute) {
+            return;
+        }
+        const id = hidden.getAttribute("data-kgrid-date-range");
+        const root = id && hidden.ownerDocument.getElementById(id);
+        if (!root) {
+            return;
+        }
+        const bound = hidden.getAttribute("data-kgrid-date-bound");
+        const visible = root.querySelector(
+            bound === "to" ? ".kgrid-date-range-to" : ".kgrid-date-range-from"
+        );
+        if (!visible) {
+            return;
+        }
+        const date = CT.dateRangeCalendarDate(hidden.value);
+        if (visible.value !== date) {
+            visible.value = date;
+        }
+    };
+
+    /** Fill empty date-range hiddens from `{ from, to }`. Does not replace a value already set. */
+    CT.applyDateRangeDefault = function (formEl, name, spec) {
+        const range = CT.normalizeDateRangeDefault(spec);
+        if (!range.from && !range.to) {
+            return;
+        }
+        const $fields = CT.filterFormFields(formEl, name);
+        function fill(operator, date) {
+            if (!date) {
+                return;
+            }
+            const $match = $fields.filter(function () {
+                return $(this).attr("data-operator") === operator;
+            });
+            if (!$match.length || $match.val()) {
+                return;
+            }
+            $match.val(date);
+            if ($match[0]) {
+                $match[0].defaultValue = $match[0].value;
+            }
+        }
+        fill(">=", range.from);
+        fill("<=", range.to);
+    };
+
+    /*
+     * type=text, not hidden: for type=hidden the value property IS defaultValue,
+     * so form.reset() cannot restore the original bound.
+     */
+    (function installDateRangeValHooks() {
+        const prev = $.valHooks.text || {};
+        $.valHooks.text = {
+            get: function (elem) {
+                if (elem && elem.classList && elem.classList.contains(DATE_RANGE_VALUE_CLASS)) {
+                    return elem.value;
+                }
+                return prev.get ? prev.get(elem) : undefined;
+            },
+            set: function (elem, value) {
+                if (elem && elem.classList && elem.classList.contains(DATE_RANGE_VALUE_CLASS)) {
+                    const date = CT.dateRangeCalendarDate(value);
+                    const bound = elem.getAttribute("data-kgrid-date-bound");
+                    elem.value = bound === "to" ? CT.dateRangeEndValue(date) : date;
+                    CT.syncDateRangeVisible(elem);
+                    return true;
+                }
+                return prev.set ? prev.set(elem, value) : undefined;
+            },
+        };
+    })();
+
+    function dateRangeLabel(config, key, fallback) {
+        const value = config && config[key];
+        return value != null && value !== "" ? String(value) : fallback;
+    }
+
+    function buildDateRangeUi($from, config) {
+        const $to = $from.data("kgridDateRangeTo");
+        const rootId = "kgrid_dr_" + CT.uuid();
+        const $root = $("<div>", { class: "kgrid-date-range", id: rootId });
+        const $fromVisible = $(
+            "<input autocomplete='off' type='date' class='form-control form-control-sm kgrid-date-range-from'/>"
+        );
+        const $toVisible = $(
+            "<input autocomplete='off' type='date' class='form-control form-control-sm kgrid-date-range-to'/>"
+        );
+        $root.append(
+            $("<label>", { class: "kgrid-date-range-bound" }).append(
+                $("<span>", {
+                    class: "kgrid-date-range-label",
+                    text: dateRangeLabel(config, "fromLabel", "From"),
+                }),
+                $fromVisible
+            ),
+            $("<label>", { class: "kgrid-date-range-bound" }).append(
+                $("<span>", {
+                    class: "kgrid-date-range-label",
+                    text: dateRangeLabel(config, "toLabel", "To"),
+                }),
+                $toVisible
+            )
+        );
+        $from.before($root);
+        $from.attr("data-kgrid-date-range", rootId);
+        $to.attr("data-kgrid-date-range", rootId);
+        $root.append($from, $to);
+
+        function writePair(from, to, asDefault) {
+            if (from && to && to < from) {
+                to = from;
+            }
+            $fromVisible.val(from || "");
+            $toVisible.val(to || "");
+            $from.val(from || "");
+            $to.val(to || "");
+            if (asDefault) {
+                if ($from[0]) {
+                    $from[0].defaultValue = $from[0].value;
+                }
+                if ($to[0]) {
+                    $to[0].defaultValue = $to[0].value;
+                }
+            }
+        }
+
+        $fromVisible.add($toVisible).on("change", function () {
+            writePair($fromVisible.val() || "", $toVisible.val() || "", false);
+            $from.trigger("change");
+        });
+
+        const ns = ".kgridDateRange_" + CT.uuid();
+        const formBind = function () {
+            const formEl = $from.prop("form") || ($from[0] && $from[0].form);
+            if (!formEl) {
+                return;
+            }
+            $(formEl).off("reset" + ns).on("reset" + ns, function () {
+                setTimeout(function () {
+                    CT.syncDateRangeVisible($from[0]);
+                    CT.syncDateRangeVisible($to[0]);
+                }, 0);
+            });
+        };
+        $from.data("kgridDateRangeBindReset", formBind);
+        formBind();
+        setTimeout(formBind, 0);
+
+        const range = CT.normalizeDateRangeDefault(
+            CT.filterDefaultValue ? CT.filterDefaultValue(config && config.default) : config && config.default
+        );
+        if (range.from || range.to) {
+            writePair(range.from, range.to, true);
+        }
+    }
+
     CT.registerFieldType("date_range", {
+        filterEvents: "change",
+        filterDebounceMs: 0,
+        validate(_config, mode) {
+            if (mode !== "filter") {
+                throw new Error("date_range is only valid as a filter");
+            }
+        },
         create() {
-            const $input = $(
-                "<input autocomplete='off' type='date' class='form-control form-control-sm'/>"
-            );
-            return { $input };
+            const $from = $("<input type='text' autocomplete='off'>")
+                .addClass(DATE_RANGE_VALUE_CLASS)
+                .attr("data-operator", ">=")
+                .attr("data-kgrid-date-bound", "from")
+                .attr("tabindex", "-1")
+                .attr("aria-hidden", "true");
+            const $to = $("<input type='text' autocomplete='off'>")
+                .addClass(DATE_RANGE_VALUE_CLASS)
+                .attr("data-operator", "<=")
+                .attr("data-kgrid-date-bound", "to")
+                .attr("tabindex", "-1")
+                .attr("aria-hidden", "true");
+            $from.data("kgridDateRangeTo", $to);
+            return { $input: $from, skipValueAttr: true };
+        },
+        mount(ctx) {
+            buildDateRangeUi(ctx.$input, ctx.config || {});
         },
     });
 })(window.KGrid);

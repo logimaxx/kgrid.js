@@ -181,6 +181,7 @@
   .custom-table-shell .thead-filters th .form-control,
   .custom-table-shell .thead-filters th .form-select,
   .custom-table-shell .thead-filters th .kgrid-multi-select,
+  .custom-table-shell .thead-filters th .kgrid-date-range,
   .custom-table-shell .thead-filters th .select2-container {
     width: 100%;
     max-width: 100%;
@@ -492,6 +493,34 @@ th.kgrid-row-actions {
   font-weight: 400;
   line-height: 1.35;
   user-select: none;
+}
+
+/* date_range: from / to stacked in the filter cell */
+.kgrid-date-range {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+  width: 100%;
+}
+.kgrid-date-range-bound {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin: 0;
+  min-width: 0;
+}
+.kgrid-date-range-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--kgrid-muted, var(--bs-secondary-color, #6c757d));
+}
+.kgrid-date-range input[type="date"] {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 /* —— Visual chrome (Linear / Notion) —— */

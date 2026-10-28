@@ -345,9 +345,11 @@ Check types with `KGrid.isValidInputType(type)`.
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `type` | `string` | `text` | Control type |
-| `operator` | `string` | `~=~` (`><` for `multi_select`) | `data-operator` for KViews (`~=~`, `=`, `><`, …) |
-| `default` | `any` | | Initial value (`string` / `string[]` for `multi_select`) |
+| `operator` | `string` | `~=~` (`><` for `multi_select`; ignored for `date_range`) | `data-operator` for KViews (`~=~`, `=`, `><`, …) |
+| `default` | `any` | | Initial value (`string` / `string[]` for `multi_select`, `{ from, to }` for `date_range`) |
 | `placeholder` | `string` | `""` (`"All"` for empty `multi_select`) | Toggle label when nothing selected (`multi_select`) |
+| `fromLabel` | `string` | `"From"` | `date_range` only: label on the start date |
+| `toLabel` | `string` | `"To"` | `date_range` only: label on the end date |
 | `options` | `array` \| `object` | | For `select`, `multi_select`, `select2`, … |
 | `separator` | `string` | `";"` | Only `multi_select`: join selected values |
 | `persist` | `boolean` | `false` | Re-apply `default` on filter reset (also implied when column `hidden` or `type: "hidden"`) |
@@ -365,7 +367,7 @@ Filter controls use `form=""` pointing at a hidden `<form>` (rows cannot wrap on
 |------|---------|--------|
 | Native HTML | filter, insert, update | `text`, `number`, `select`, … |
 | `multi_select` | filter (also insert/update) | Checkbox list; values `a;b` with operator `><` |
-| `date_range` | filter | Built-in single date input |
+| `date_range` | filter | From/to dates; `col>=start,col<=end 23:59:59` |
 | `select2` | filter, insert, update | `customInputTypes: { select2: KGrid.select2(fn) }` + `kgrid-widgets.js` |
 | `autosuggest` | filter, insert, update | `customInputTypes: { autosuggest: KGrid.autosuggest(fn) }` + `kgrid-widgets.js` |
 | Custom | any | `customInputTypes` or `registerFieldType` |

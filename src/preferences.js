@@ -117,10 +117,32 @@
             if (!CT.isUserFilterColumn(col)) {
                 return;
             }
-            const $field = CT.filterFormField(form, col.name);
-            if (!$field.length) {
+            let $fields = CT.filterFormFields(form, col.name);
+            if (!$fields.length) {
+                $fields = CT.filterFormField(form, col.name);
+            }
+            if (!$fields.length) {
                 return;
             }
+            if ($fields.length > 1) {
+                $fields.each(function () {
+                    const $el = $(this);
+                    const bound = $el.val();
+                    if (bound == null || bound === "" || (Array.isArray(bound) && !bound.length)) {
+                        return;
+                    }
+                    out.push({
+                        name: col.name,
+                        value: Array.isArray(bound) ? bound : String(bound),
+                        operator:
+                            $el.attr("data-operator") ||
+                            (col.filter && col.filter.operator) ||
+                            ">=",
+                    });
+                });
+                return;
+            }
+            const $field = $fields;
             const value = $field.val();
             if (value == null || value === "" || (Array.isArray(value) && !value.length)) {
                 return;
@@ -155,6 +177,19 @@
             if (entry.value == null || entry.value === "") {
                 return;
             }
+            const $bounds = CT.filterFormFields(form, entry.name);
+            if ($bounds.length > 1) {
+                if (!entry.operator) {
+                    return;
+                }
+                const $match = $bounds.filter(function () {
+                    return $(this).attr("data-operator") === entry.operator;
+                });
+                if ($match.length) {
+                    $match.val(entry.value);
+                }
+                return;
+            }
             let $field = CT.filterFormField(form, entry.name);
             if (!$field.length) {
                 CT.ensureFilterField(form, entry.name, entry.value, entry.operator);
@@ -182,6 +217,16 @@
         urlFilter.split(",").forEach(function (part) {
             const parsed = CT.parseFilterExpression(part.trim());
             if (!parsed || !parsed.name || parsed.value === "") {
+                return;
+            }
+            const $bounds = CT.filterFormFields(form, parsed.name);
+            if ($bounds.length > 1) {
+                const $match = $bounds.filter(function () {
+                    return $(this).attr("data-operator") === parsed.operator;
+                });
+                if ($match.length && !$match.val()) {
+                    $match.val(parsed.value);
+                }
                 return;
             }
             const $existing = CT.filterFormField(form, parsed.name);

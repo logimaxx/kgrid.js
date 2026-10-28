@@ -1,4 +1,4 @@
-/*! @logimaxx/kgrid | (c) Logimaxx System SRL — proprietary | https://logimaxx.ro | built 2026-10-27T05:18:00.834Z */
+/*! @logimaxx/kgrid | (c) Logimaxx System SRL — proprietary | https://logimaxx.ro | built 2026-10-28T14:22:03.085Z */
 
 /* --- configure.js --- */
 /**
@@ -670,20 +670,33 @@
 
     /** Field in filter row (associated via form="" on control, not nested inside <form>). */
     CT.filterFormField = function (formEl, name) {
+        const $fields = CT.filterFormFields(formEl, name);
+        return $fields.length ? $fields.eq(0) : $();
+    };
+
+    /** Every control with this name. Two date-range bounds share a name and differ by operator. */
+    CT.filterFormFields = function (formEl, name) {
         if (!formEl || !name) {
             return $();
         }
-        const el = formEl.elements && formEl.elements.namedItem(name);
-        if (el) {
-            return $(el);
-        }
-        if (formEl.id) {
-            const associated = document.querySelector(`[form="${formEl.id}"][name="${name}"]`);
-            if (associated) {
-                return $(associated);
+        const list = [];
+        const els = formEl.elements;
+        if (els) {
+            for (let i = 0; i < els.length; i++) {
+                if (els[i] && els[i].name === name) {
+                    list.push(els[i]);
+                }
             }
         }
-        return $();
+        if (!list.length && formEl.id) {
+            const nodes = document.querySelectorAll(
+                '[form="' + formEl.id + '"][name="' + name + '"]'
+            );
+            for (let i = 0; i < nodes.length; i++) {
+                list.push(nodes[i]);
+            }
+        }
+        return $(list);
     };
 
     /** Resolved CSS class for a column (`class` or alias `columnClass`). */
@@ -1900,12 +1913,223 @@
         },
     });
 
+    const DATE_RANGE_VALUE_CLASS = "kgrid-date-range-value";
+
+    /** Calendar day from a date or `YYYY-MM-DD HH:MM:SS` filter value. */
+    CT.dateRangeCalendarDate = function (value) {
+        if (value == null || value === "") {
+            return "";
+        }
+        const match = /^(\d{4}-\d{2}-\d{2})/.exec(String(value).trim());
+        return match ? match[1] : "";
+    };
+
+    /** Inclusive end of a calendar day for DATETIME columns. */
+    CT.dateRangeEndValue = function (date) {
+        return date ? date + " 23:59:59" : "";
+    };
+
+    /**
+     * `{ from, to }` calendar dates. If `to` is before `from`, `to` becomes `from`.
+     * @param {*} spec
+     * @returns {{ from: string, to: string }}
+     */
+    CT.normalizeDateRangeDefault = function (spec) {
+        if (spec == null || typeof spec !== "object" || Array.isArray(spec)) {
+            return { from: "", to: "" };
+        }
+        let from = CT.dateRangeCalendarDate(spec.from);
+        let to = CT.dateRangeCalendarDate(spec.to);
+        if (from && to && to < from) {
+            to = from;
+        }
+        return { from: from, to: to };
+    };
+
+    CT.syncDateRangeVisible = function (hidden) {
+        if (!hidden || !hidden.getAttribute) {
+            return;
+        }
+        const id = hidden.getAttribute("data-kgrid-date-range");
+        const root = id && hidden.ownerDocument.getElementById(id);
+        if (!root) {
+            return;
+        }
+        const bound = hidden.getAttribute("data-kgrid-date-bound");
+        const visible = root.querySelector(
+            bound === "to" ? ".kgrid-date-range-to" : ".kgrid-date-range-from"
+        );
+        if (!visible) {
+            return;
+        }
+        const date = CT.dateRangeCalendarDate(hidden.value);
+        if (visible.value !== date) {
+            visible.value = date;
+        }
+    };
+
+    /** Fill empty date-range hiddens from `{ from, to }`. Does not replace a value already set. */
+    CT.applyDateRangeDefault = function (formEl, name, spec) {
+        const range = CT.normalizeDateRangeDefault(spec);
+        if (!range.from && !range.to) {
+            return;
+        }
+        const $fields = CT.filterFormFields(formEl, name);
+        function fill(operator, date) {
+            if (!date) {
+                return;
+            }
+            const $match = $fields.filter(function () {
+                return $(this).attr("data-operator") === operator;
+            });
+            if (!$match.length || $match.val()) {
+                return;
+            }
+            $match.val(date);
+            if ($match[0]) {
+                $match[0].defaultValue = $match[0].value;
+            }
+        }
+        fill(">=", range.from);
+        fill("<=", range.to);
+    };
+
+    /*
+     * type=text, not hidden: for type=hidden the value property IS defaultValue,
+     * so form.reset() cannot restore the original bound.
+     */
+    (function installDateRangeValHooks() {
+        const prev = $.valHooks.text || {};
+        $.valHooks.text = {
+            get: function (elem) {
+                if (elem && elem.classList && elem.classList.contains(DATE_RANGE_VALUE_CLASS)) {
+                    return elem.value;
+                }
+                return prev.get ? prev.get(elem) : undefined;
+            },
+            set: function (elem, value) {
+                if (elem && elem.classList && elem.classList.contains(DATE_RANGE_VALUE_CLASS)) {
+                    const date = CT.dateRangeCalendarDate(value);
+                    const bound = elem.getAttribute("data-kgrid-date-bound");
+                    elem.value = bound === "to" ? CT.dateRangeEndValue(date) : date;
+                    CT.syncDateRangeVisible(elem);
+                    return true;
+                }
+                return prev.set ? prev.set(elem, value) : undefined;
+            },
+        };
+    })();
+
+    function dateRangeLabel(config, key, fallback) {
+        const value = config && config[key];
+        return value != null && value !== "" ? String(value) : fallback;
+    }
+
+    function buildDateRangeUi($from, config) {
+        const $to = $from.data("kgridDateRangeTo");
+        const rootId = "kgrid_dr_" + CT.uuid();
+        const $root = $("<div>", { class: "kgrid-date-range", id: rootId });
+        const $fromVisible = $(
+            "<input autocomplete='off' type='date' class='form-control form-control-sm kgrid-date-range-from'/>"
+        );
+        const $toVisible = $(
+            "<input autocomplete='off' type='date' class='form-control form-control-sm kgrid-date-range-to'/>"
+        );
+        $root.append(
+            $("<label>", { class: "kgrid-date-range-bound" }).append(
+                $("<span>", {
+                    class: "kgrid-date-range-label",
+                    text: dateRangeLabel(config, "fromLabel", "From"),
+                }),
+                $fromVisible
+            ),
+            $("<label>", { class: "kgrid-date-range-bound" }).append(
+                $("<span>", {
+                    class: "kgrid-date-range-label",
+                    text: dateRangeLabel(config, "toLabel", "To"),
+                }),
+                $toVisible
+            )
+        );
+        $from.before($root);
+        $from.attr("data-kgrid-date-range", rootId);
+        $to.attr("data-kgrid-date-range", rootId);
+        $root.append($from, $to);
+
+        function writePair(from, to, asDefault) {
+            if (from && to && to < from) {
+                to = from;
+            }
+            $fromVisible.val(from || "");
+            $toVisible.val(to || "");
+            $from.val(from || "");
+            $to.val(to || "");
+            if (asDefault) {
+                if ($from[0]) {
+                    $from[0].defaultValue = $from[0].value;
+                }
+                if ($to[0]) {
+                    $to[0].defaultValue = $to[0].value;
+                }
+            }
+        }
+
+        $fromVisible.add($toVisible).on("change", function () {
+            writePair($fromVisible.val() || "", $toVisible.val() || "", false);
+            $from.trigger("change");
+        });
+
+        const ns = ".kgridDateRange_" + CT.uuid();
+        const formBind = function () {
+            const formEl = $from.prop("form") || ($from[0] && $from[0].form);
+            if (!formEl) {
+                return;
+            }
+            $(formEl).off("reset" + ns).on("reset" + ns, function () {
+                setTimeout(function () {
+                    CT.syncDateRangeVisible($from[0]);
+                    CT.syncDateRangeVisible($to[0]);
+                }, 0);
+            });
+        };
+        $from.data("kgridDateRangeBindReset", formBind);
+        formBind();
+        setTimeout(formBind, 0);
+
+        const range = CT.normalizeDateRangeDefault(
+            CT.filterDefaultValue ? CT.filterDefaultValue(config && config.default) : config && config.default
+        );
+        if (range.from || range.to) {
+            writePair(range.from, range.to, true);
+        }
+    }
+
     CT.registerFieldType("date_range", {
+        filterEvents: "change",
+        filterDebounceMs: 0,
+        validate(_config, mode) {
+            if (mode !== "filter") {
+                throw new Error("date_range is only valid as a filter");
+            }
+        },
         create() {
-            const $input = $(
-                "<input autocomplete='off' type='date' class='form-control form-control-sm'/>"
-            );
-            return { $input };
+            const $from = $("<input type='text' autocomplete='off'>")
+                .addClass(DATE_RANGE_VALUE_CLASS)
+                .attr("data-operator", ">=")
+                .attr("data-kgrid-date-bound", "from")
+                .attr("tabindex", "-1")
+                .attr("aria-hidden", "true");
+            const $to = $("<input type='text' autocomplete='off'>")
+                .addClass(DATE_RANGE_VALUE_CLASS)
+                .attr("data-operator", "<=")
+                .attr("data-kgrid-date-bound", "to")
+                .attr("tabindex", "-1")
+                .attr("aria-hidden", "true");
+            $from.data("kgridDateRangeTo", $to);
+            return { $input: $from, skipValueAttr: true };
+        },
+        mount(ctx) {
+            buildDateRangeUi(ctx.$input, ctx.config || {});
         },
     });
 })(window.KGrid);
@@ -2145,6 +2369,10 @@
             if (value == null || value === "") {
                 return;
             }
+            if (filter.type === "date_range") {
+                CT.applyDateRangeDefault(formEl, col.name, value);
+                return;
+            }
             const operator =
                 filter.operator || (CT.columnFilterPersisted(col) ? "=" : "~=~");
             const $existing = CT.filterFormField(formEl, col.name);
@@ -2225,6 +2453,18 @@
                 ""
         );
         const missing = persisted.some(function (col) {
+            if (col.filter && col.filter.type === "date_range") {
+                const range = CT.normalizeDateRangeDefault(
+                    CT.filterDefaultValue(col.filter.default)
+                );
+                if (range.from && urlFilter.indexOf(col.name + ">=") === -1) {
+                    return true;
+                }
+                if (range.to && urlFilter.indexOf(col.name + "<=") === -1) {
+                    return true;
+                }
+                return false;
+            }
             return urlFilter.indexOf(col.name + "=") === -1;
         });
         if (missing && !(extra && extra.skipInitSubmit)) {
@@ -2344,25 +2584,37 @@
                 }
             }
 
-            const operator =
-                filter.operator ||
-                (filter.type === "multi_select" ? "><" : undefined);
-            if (operator != null) {
-                input.attr("data-operator", operator);
-            }
-            input.attr("form", filterFormId);
-            input.attr("name", col.name);
+            if (filter.type === "date_range") {
+                filterCell.find("input.kgrid-date-range-value").each(function () {
+                    this.setAttribute("form", filterFormId);
+                    this.setAttribute("name", col.name);
+                    filterForm[0].appendChild(this);
+                });
+                const bindReset = input.data("kgridDateRangeBindReset");
+                if (typeof bindReset === "function") {
+                    bindReset();
+                }
+            } else {
+                const operator =
+                    filter.operator ||
+                    (filter.type === "multi_select" ? "><" : undefined);
+                if (operator != null) {
+                    input.attr("data-operator", operator);
+                }
+                input.attr("form", filterFormId);
+                input.attr("name", col.name);
 
-            const defVal = CT.filterDefaultValue(filter.default);
-            if (defVal != null && defVal !== "" && !input.val()) {
-                const normalized =
-                    filter.type === "multi_select"
-                        ? CT.normalizeMultiSelectValue(defVal, filter.separator)
-                        : String(defVal);
-                input.val(normalized);
-                input.attr("data-default", normalized);
-                if (input[0]) {
-                    input[0].defaultValue = normalized;
+                const defVal = CT.filterDefaultValue(filter.default);
+                if (defVal != null && defVal !== "" && !input.val()) {
+                    const normalized =
+                        filter.type === "multi_select"
+                            ? CT.normalizeMultiSelectValue(defVal, filter.separator)
+                            : String(defVal);
+                    input.val(normalized);
+                    input.attr("data-default", normalized);
+                    if (input[0]) {
+                        input[0].defaultValue = normalized;
+                    }
                 }
             }
 
@@ -3147,10 +3399,32 @@
             if (!CT.isUserFilterColumn(col)) {
                 return;
             }
-            const $field = CT.filterFormField(form, col.name);
-            if (!$field.length) {
+            let $fields = CT.filterFormFields(form, col.name);
+            if (!$fields.length) {
+                $fields = CT.filterFormField(form, col.name);
+            }
+            if (!$fields.length) {
                 return;
             }
+            if ($fields.length > 1) {
+                $fields.each(function () {
+                    const $el = $(this);
+                    const bound = $el.val();
+                    if (bound == null || bound === "" || (Array.isArray(bound) && !bound.length)) {
+                        return;
+                    }
+                    out.push({
+                        name: col.name,
+                        value: Array.isArray(bound) ? bound : String(bound),
+                        operator:
+                            $el.attr("data-operator") ||
+                            (col.filter && col.filter.operator) ||
+                            ">=",
+                    });
+                });
+                return;
+            }
+            const $field = $fields;
             const value = $field.val();
             if (value == null || value === "" || (Array.isArray(value) && !value.length)) {
                 return;
@@ -3185,6 +3459,19 @@
             if (entry.value == null || entry.value === "") {
                 return;
             }
+            const $bounds = CT.filterFormFields(form, entry.name);
+            if ($bounds.length > 1) {
+                if (!entry.operator) {
+                    return;
+                }
+                const $match = $bounds.filter(function () {
+                    return $(this).attr("data-operator") === entry.operator;
+                });
+                if ($match.length) {
+                    $match.val(entry.value);
+                }
+                return;
+            }
             let $field = CT.filterFormField(form, entry.name);
             if (!$field.length) {
                 CT.ensureFilterField(form, entry.name, entry.value, entry.operator);
@@ -3212,6 +3499,16 @@
         urlFilter.split(",").forEach(function (part) {
             const parsed = CT.parseFilterExpression(part.trim());
             if (!parsed || !parsed.name || parsed.value === "") {
+                return;
+            }
+            const $bounds = CT.filterFormFields(form, parsed.name);
+            if ($bounds.length > 1) {
+                const $match = $bounds.filter(function () {
+                    return $(this).attr("data-operator") === parsed.operator;
+                });
+                if ($match.length && !$match.val()) {
+                    $match.val(parsed.value);
+                }
                 return;
             }
             const $existing = CT.filterFormField(form, parsed.name);

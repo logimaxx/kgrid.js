@@ -125,6 +125,10 @@
             if (value == null || value === "") {
                 return;
             }
+            if (filter.type === "date_range") {
+                CT.applyDateRangeDefault(formEl, col.name, value);
+                return;
+            }
             const operator =
                 filter.operator || (CT.columnFilterPersisted(col) ? "=" : "~=~");
             const $existing = CT.filterFormField(formEl, col.name);
@@ -205,6 +209,18 @@
                 ""
         );
         const missing = persisted.some(function (col) {
+            if (col.filter && col.filter.type === "date_range") {
+                const range = CT.normalizeDateRangeDefault(
+                    CT.filterDefaultValue(col.filter.default)
+                );
+                if (range.from && urlFilter.indexOf(col.name + ">=") === -1) {
+                    return true;
+                }
+                if (range.to && urlFilter.indexOf(col.name + "<=") === -1) {
+                    return true;
+                }
+                return false;
+            }
             return urlFilter.indexOf(col.name + "=") === -1;
         });
         if (missing && !(extra && extra.skipInitSubmit)) {
@@ -324,25 +340,37 @@
                 }
             }
 
-            const operator =
-                filter.operator ||
-                (filter.type === "multi_select" ? "><" : undefined);
-            if (operator != null) {
-                input.attr("data-operator", operator);
-            }
-            input.attr("form", filterFormId);
-            input.attr("name", col.name);
+            if (filter.type === "date_range") {
+                filterCell.find("input.kgrid-date-range-value").each(function () {
+                    this.setAttribute("form", filterFormId);
+                    this.setAttribute("name", col.name);
+                    filterForm[0].appendChild(this);
+                });
+                const bindReset = input.data("kgridDateRangeBindReset");
+                if (typeof bindReset === "function") {
+                    bindReset();
+                }
+            } else {
+                const operator =
+                    filter.operator ||
+                    (filter.type === "multi_select" ? "><" : undefined);
+                if (operator != null) {
+                    input.attr("data-operator", operator);
+                }
+                input.attr("form", filterFormId);
+                input.attr("name", col.name);
 
-            const defVal = CT.filterDefaultValue(filter.default);
-            if (defVal != null && defVal !== "" && !input.val()) {
-                const normalized =
-                    filter.type === "multi_select"
-                        ? CT.normalizeMultiSelectValue(defVal, filter.separator)
-                        : String(defVal);
-                input.val(normalized);
-                input.attr("data-default", normalized);
-                if (input[0]) {
-                    input[0].defaultValue = normalized;
+                const defVal = CT.filterDefaultValue(filter.default);
+                if (defVal != null && defVal !== "" && !input.val()) {
+                    const normalized =
+                        filter.type === "multi_select"
+                            ? CT.normalizeMultiSelectValue(defVal, filter.separator)
+                            : String(defVal);
+                    input.val(normalized);
+                    input.attr("data-default", normalized);
+                    if (input[0]) {
+                        input[0].defaultValue = normalized;
+                    }
                 }
             }
 
