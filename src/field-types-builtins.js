@@ -347,8 +347,13 @@
         if (!root) {
             return;
         }
+        const doc = hidden.ownerDocument;
+        const panel = doc.getElementById(id + "_panel");
+        function boundInput(selector) {
+            return root.querySelector(selector) || (panel && panel.querySelector(selector));
+        }
         const bound = hidden.getAttribute("data-kgrid-date-bound");
-        const visible = root.querySelector(
+        const visible = boundInput(
             bound === "to" ? ".kgrid-date-range-to" : ".kgrid-date-range-from"
         );
         if (!visible) {
@@ -357,6 +362,26 @@
         const date = CT.dateRangeCalendarDate(hidden.value);
         if (visible.value !== date) {
             visible.value = date;
+        }
+        const display = root.querySelector(".kgrid-date-range-display");
+        if (!display) {
+            return;
+        }
+        const fromEl = boundInput(".kgrid-date-range-from");
+        const toEl = boundInput(".kgrid-date-range-to");
+        const text = formatDateRangeDisplay(fromEl && fromEl.value, toEl && toEl.value);
+        if (display.value !== text) {
+            display.value = text;
+        }
+        const clear = root.querySelector(".kgrid-date-range-clear");
+        if (clear) {
+            if (text) {
+                clear.removeAttribute("hidden");
+                root.classList.add("kgrid-date-range-has-value");
+            } else {
+                clear.setAttribute("hidden", "hidden");
+                root.classList.remove("kgrid-date-range-has-value");
+            }
         }
     };
 
@@ -412,6 +437,26 @@
         };
     })();
 
+    /** Closed field shows `DD.MM.YYYY`. One side omitted stays blank around the dash. */
+    function formatDateRangeDisplay(from, to) {
+        function day(iso) {
+            const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || "");
+            return match ? match[3] + "." + match[2] + "." + match[1] : "";
+        }
+        const start = day(from);
+        const end = day(to);
+        if (start && end) {
+            return start + " – " + end;
+        }
+        if (start) {
+            return start + " –";
+        }
+        if (end) {
+            return "– " + end;
+        }
+        return "";
+    }
+
     function dateRangeLabel(config, key, fallback) {
         const value = config && config[key];
         return value != null && value !== "" ? String(value) : fallback;
@@ -420,29 +465,53 @@
     function buildDateRangeUi($from, config) {
         const $to = $from.data("kgridDateRangeTo");
         const rootId = "kgrid_dr_" + CT.uuid();
+        const fromLabel = dateRangeLabel(config, "fromLabel", "From");
+        const toLabel = dateRangeLabel(config, "toLabel", "To");
+        const placeholder =
+            config && config.placeholder != null && config.placeholder !== ""
+                ? String(config.placeholder)
+                : fromLabel + " – " + toLabel;
         const $root = $("<div>", { class: "kgrid-date-range", id: rootId });
+        const panelId = rootId + "_panel";
+        const $display = $(
+            "<input type='text' readonly autocomplete='off' class='form-control form-control-sm kgrid-date-range-display'/>"
+        )
+            .attr("placeholder", placeholder)
+            .attr("role", "button")
+            .attr("aria-haspopup", "dialog")
+            .attr("aria-expanded", "false")
+            .attr("aria-controls", panelId);
+        const $clear = $("<button>", {
+            type: "button",
+            class: "kgrid-date-range-clear",
+            hidden: "hidden",
+            "aria-label": "Clear",
+            text: "×",
+        });
         const $fromVisible = $(
             "<input autocomplete='off' type='date' class='form-control form-control-sm kgrid-date-range-from'/>"
         );
         const $toVisible = $(
             "<input autocomplete='off' type='date' class='form-control form-control-sm kgrid-date-range-to'/>"
         );
-        $root.append(
+        const $panel = $("<div>", {
+            class: "kgrid-date-range-panel",
+            id: panelId,
+            hidden: "hidden",
+            role: "dialog",
+            "aria-label": placeholder,
+        });
+        $panel.append(
             $("<label>", { class: "kgrid-date-range-bound" }).append(
-                $("<span>", {
-                    class: "kgrid-date-range-label",
-                    text: dateRangeLabel(config, "fromLabel", "From"),
-                }),
+                $("<span>", { class: "kgrid-date-range-label", text: fromLabel }),
                 $fromVisible
             ),
             $("<label>", { class: "kgrid-date-range-bound" }).append(
-                $("<span>", {
-                    class: "kgrid-date-range-label",
-                    text: dateRangeLabel(config, "toLabel", "To"),
-                }),
+                $("<span>", { class: "kgrid-date-range-label", text: toLabel }),
                 $toVisible
             )
         );
+        $root.append($display, $clear, $panel);
         $from.before($root);
         $from.attr("data-kgrid-date-range", rootId);
         $to.attr("data-kgrid-date-range", rootId);
@@ -466,12 +535,91 @@
             }
         }
 
+        function setOpen(open) {
+            if (open) {
+                $panel.appendTo(document.body);
+                $panel.addClass("kgrid-date-range-panel-floating");
+                $panel.removeAttr("hidden");
+                $root.addClass("kgrid-date-range-open");
+                $display.attr("aria-expanded", "true");
+                positionPanel();
+            } else {
+                $panel.attr("hidden", "hidden");
+                $root.removeClass("kgrid-date-range-open");
+                $display.attr("aria-expanded", "false");
+                $panel.css({ position: "", top: "", left: "", width: "", zIndex: "" });
+                $panel.removeClass("kgrid-date-range-panel-floating");
+                $panel.insertAfter($clear);
+            }
+        }
+
+        function positionPanel() {
+            const rect = $display[0].getBoundingClientRect();
+            const width = Math.min(Math.max(rect.width, 20 * 16), window.innerWidth - 16);
+            let left = rect.left;
+            const maxLeft = window.innerWidth - width - 8;
+            if (left > maxLeft) {
+                left = Math.max(8, maxLeft);
+            }
+            $panel.css({
+                position: "fixed",
+                top: rect.bottom + 2 + "px",
+                left: left + "px",
+                width: width + "px",
+                zIndex: 1080,
+            });
+            const height = $panel[0].offsetHeight;
+            let top = rect.bottom + 2;
+            if (top + height > window.innerHeight - 8 && rect.top > height + 8) {
+                top = rect.top - height - 2;
+            }
+            $panel.css("top", top + "px");
+        }
+
         $fromVisible.add($toVisible).on("change", function () {
             writePair($fromVisible.val() || "", $toVisible.val() || "", false);
             $from.trigger("change");
         });
 
+        $display.on("click", function (e) {
+            e.preventDefault();
+            setOpen(!$root.hasClass("kgrid-date-range-open"));
+        });
+        $display.on("keydown", function (e) {
+            if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setOpen(!$root.hasClass("kgrid-date-range-open"));
+            }
+        });
+        $clear.on("click", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            writePair("", "", false);
+            $from.trigger("change");
+            setOpen(false);
+        });
+
         const ns = ".kgridDateRange_" + CT.uuid();
+        $(document).on("mousedown" + ns, function (e) {
+            if (!$root.hasClass("kgrid-date-range-open")) {
+                return;
+            }
+            if ($(e.target).closest($root).length || $(e.target).closest($panel).length) {
+                return;
+            }
+            setOpen(false);
+        });
+        $(document).on("keydown" + ns, function (e) {
+            if (e.key === "Escape" && $root.hasClass("kgrid-date-range-open")) {
+                setOpen(false);
+            }
+        });
+        $(window).on("resize" + ns + " scroll" + ns, function () {
+            if ($root.hasClass("kgrid-date-range-open")) {
+                positionPanel();
+            }
+        });
+
         const formBind = function () {
             const formEl = $from.prop("form") || ($from[0] && $from[0].form);
             if (!formEl) {

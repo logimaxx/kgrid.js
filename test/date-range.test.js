@@ -59,6 +59,11 @@ describe("date_range field type", () => {
         });
 
         expect($table.find(".kgrid-date-range").length).toBe(1);
+        const $display = $table.find(".kgrid-date-range-display");
+        expect($display.length).toBe(1);
+        expect($display.attr("placeholder")).toBe("De la – Până la");
+        expect($display.attr("aria-expanded")).toBe("false");
+        expect($table.find(".kgrid-date-range-panel").attr("hidden")).toBe("hidden");
         expect($table.find(".kgrid-date-range-from").attr("name")).toBeUndefined();
         expect($table.find(".kgrid-date-range-to").attr("name")).toBeUndefined();
         expect($table.find(".kgrid-date-range-label").eq(0).text()).toBe("De la");
@@ -91,6 +96,8 @@ describe("date_range field type", () => {
         );
         expect($table.find(".kgrid-date-range-from").val()).toBe("2026-01-01");
         expect($table.find(".kgrid-date-range-to").val()).toBe("2026-01-31");
+        expect($table.find(".kgrid-date-range-display").val()).toBe("01.01.2026 – 31.01.2026");
+        expect($table.find(".kgrid-date-range-clear").attr("hidden")).toBeUndefined();
 
         setDates($table, "2026-03-01", "");
         expect(filterExpression(form)).toBe("posted_at>=2026-03-01");
@@ -99,6 +106,24 @@ describe("date_range field type", () => {
         expect(filterExpression(form)).toBe("posted_at<=2026-03-15 23:59:59");
 
         setDates($table, "", "");
+        expect(filterExpression(form)).toBeUndefined();
+        expect($table.find(".kgrid-date-range-display").val()).toBe("");
+        expect($table.find(".kgrid-date-range-clear").attr("hidden")).toBe("hidden");
+    });
+
+    it("opens the date panel from the single field and clears both bounds", () => {
+        const { $table, form } = mountDateRange();
+        setDates($table, "2026-01-01", "2026-01-31");
+
+        $table.find(".kgrid-date-range-display").trigger("click");
+        const $panel = $(".kgrid-date-range-panel");
+        expect($panel.attr("hidden")).toBeUndefined();
+        expect($panel.parent().is("body")).toBe(true);
+        expect($table.find(".kgrid-date-range-display").attr("aria-expanded")).toBe("true");
+
+        $table.find(".kgrid-date-range-clear").trigger("click");
+        expect($table.find(".kgrid-date-range-display").val()).toBe("");
+        expect($table.find(".kgrid-date-range-display").attr("aria-expanded")).toBe("false");
         expect(filterExpression(form)).toBeUndefined();
     });
 

@@ -114,7 +114,7 @@ Produces filter expressions like `state><DRAFT;PICKED`.
 
 ### `date_range` — from / to (filter only)
 
-Two date inputs in the filter cell. Each bound is its own hidden field with the column name, so KViews emits two filter clauses. `filter.operator` is ignored.
+One text field in the filter cell, the same height as the other filters. It shows the range as `DD.MM.YYYY – DD.MM.YYYY` (a missing side stays blank). Click or Enter opens a panel with the two date inputs; × on the field clears both. Each bound is its own hidden field with the column name, so KViews emits two filter clauses. `filter.operator` is ignored.
 
 | Concern | Behavior |
 |---------|----------|
@@ -123,7 +123,7 @@ Two date inputs in the filter cell. Each bound is its own hidden field with the 
 | Empty side | omitted |
 | Both empty | no filter on that column |
 | Order | if To is before From, To is moved to From |
-| Labels | `From` / `To`, or `filter.fromLabel` / `filter.toLabel` |
+| Labels | panel labels and the empty placeholder: `From` / `To`, or `filter.fromLabel` / `filter.toLabel`. `filter.placeholder` replaces the placeholder |
 | Default | `{ from, to }` calendar dates; either side may be omitted |
 
 ```javascript
