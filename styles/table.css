@@ -631,6 +631,26 @@ th.kgrid-row-actions {
   table.custom-table .thead-labels th {
     border-bottom-color: var(--kgrid-row-border) !important;
   }
+  /* Ellipsis stays on the label. The th still clips, but that would hide the
+     sort icon when the name is longer than the column. */
+  table.custom-table .thead-labels th a.sort {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+  table.custom-table .thead-labels th a.sort .column-label {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  table.custom-table .thead-labels th a.sort i {
+    flex: 0 0 auto;
+  }
   table.custom-table .main-tbody > tr:nth-child(even) > td {
     background-color: var(--kgrid-row-alt);
   }
