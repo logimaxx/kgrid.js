@@ -83,6 +83,11 @@ Async table initializer.
 | `find(sel)` | ` $host.find(sel)` |
 | `setInteraction`, `getInteraction`, `toggleEditMode`, `setEditMode` | Interaction mode |
 | `getLayout`, `setLayout`, `resetLayout` | Column order / user-hidden columns |
+| `getSelection()` | Selected records `[{ id, ...meta }]`, including rows not on the current page (`features.selection`) |
+| `toggleAll(on?)` | Check or uncheck every row on the current page. No argument toggles: all on if any visible row is unchecked |
+| `clearSelection()` | Drop every selected id and uncheck the visible rows |
+| `syncSelection()` | Repaint visible checkboxes from the selection |
+| `selected` | `Map` of id → record |
 
 ### Prototypes
 

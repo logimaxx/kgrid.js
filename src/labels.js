@@ -18,6 +18,17 @@
             let cell = labelTemplate.clone(true);
             CT.applyColumnDomAttrs(cell, col);
             CT.applyColumnCellMeta(cell, col);
+            if (col.selection) {
+                const $th = cell.empty();
+                $("<input>", {
+                    type: "checkbox",
+                    class: "form-check-input kgrid-select-all",
+                    "aria-label": options.selectionAllLabel || "Toggle all",
+                }).appendTo($th);
+                CT.applyColumnCellMeta($th, col);
+                labelsRow.append($th);
+                return;
+            }
             const label = col.label ?? "";
 
             if (!col.features?.sort) {

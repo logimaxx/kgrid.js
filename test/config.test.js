@@ -47,6 +47,7 @@ describe("constants", () => {
             delete: false,
             clone: false,
             columnChooser: false,
+            selection: false,
         });
     });
 

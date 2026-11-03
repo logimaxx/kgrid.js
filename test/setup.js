@@ -27,6 +27,7 @@ const SRC_ORDER = [
     "events.js",
     "preferences.js",
     "column-chooser.js",
+    "selection.js",
     "init.js",
 ];
 

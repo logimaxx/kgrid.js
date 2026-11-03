@@ -73,6 +73,10 @@ const grid = await KGrid.init(document.getElementById("grid-host"), {
 // grid.filterForm.filter(name, value, operator)
 // grid.setInteraction("edit" | "view")
 // grid.getInteraction()
+// features.selection: header checkbox toggles the current page
+// grid.getSelection() — [{ id, ...meta }] kept across paging
+// grid.toggleAll() / grid.clearSelection()
+// selection: { meta(item, $row) } adds fields onto each selected record
 ```
 
 ---
@@ -105,7 +109,7 @@ Per-table override: pass `deleteConfirm` in `init(host, { deleteConfirm, ... })`
 **Features** (all default `false`):
 
 ```javascript
-features: { filtering, sorting, paging, create, update, delete, columnChooser }
+features: { filtering, sorting, paging, create, update, delete, columnChooser, selection }
 ```
 
 **Interaction:**

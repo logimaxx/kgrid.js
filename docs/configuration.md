@@ -157,6 +157,7 @@ features: {
   delete: false,
   clone: false,
   columnChooser: false,
+  selection: false,
 }
 ```
 
@@ -167,6 +168,10 @@ features: {
 | `storageKey` | `string` | Persist layout (order + user-hidden), filter values, sort, and paging. Layout key: `kgrid:{storageKey}:layout`. Filters: `kgrid:{storageKey}:filters`. Sort and page size / offset: `kgrid:{storageKey}:view`. Scope suffix applies to filters and view, not layout. |
 | `filterStorageScope` | `string` | Suffix for saved filters, sort, and paging (e.g. company id). Column layout is shared across scopes. |
 | `features.columnChooser` | `boolean` | Columns panel (checkbox + drag) opened from a gear icon in the trailing `th.kgrid-row-actions`. Ensures the actions column exists. Works without `storageKey` (session only). |
+| `features.selection` | `boolean` | Leading checkbox column. The header checkbox toggles every row on the current page. Selected ids survive filter, sort, and paging. The column stays first and out of the column chooser. |
+| `selection` | `{ meta(item, $row) }` | Extra fields stored with each selected id. `id` is always the record id. |
+| `selectionAllLabel` | `string` | Header checkbox `aria-label` (default `"Toggle all"`). |
+| `selectionRowLabel` | `string` | Row checkbox `aria-label` (default `"Select row"`). |
 | `columnChooserLabel` | `string` | Gear button `title` / `aria-label` (default `"Columns"`) |
 | `columnChooserResetLabel` | `string` | Reset button (default `"Reset columns"`) |
 | `preferencesStorage` | `{ get, set }` | Per-table override of `configure({ preferencesStorage })`; default `localStorage` |

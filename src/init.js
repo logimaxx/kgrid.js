@@ -83,6 +83,7 @@
             },
         };
 
+        CT.installSelectionColumn(options);
         options.columns = (options.columns || []).map((col) => CT.normalizeColumnConfig(col));
         const schemaOrder = options.columns.map(function (col) {
             return col.name;
@@ -271,6 +272,9 @@
         CT.ensureUrlFiltersOnForm(filterFormEl, api.instance);
         CT.setupFilterPersistence(filterFormEl, options);
         CT.setupColumnChooser($host, options, api);
+        if (CT.selectionEnabled(options)) {
+            CT.bindSelection(api, options, table);
+        }
 
         if (options.url) {
             try {

@@ -69,7 +69,7 @@
 
     CT.chooserColumns = function (columns) {
         return (columns || []).filter(function (col) {
-            return col && col.name && !col.hidden;
+            return col && col.name && !col.hidden && !col.selection;
         });
     };
 
@@ -505,9 +505,14 @@
     CT.reorderColumns = function (columns, orderedVisibleNames) {
         const byName = new Map();
         const schemaHidden = [];
+        const pinned = [];
         (columns || []).forEach(function (col, i) {
             if (col && col.hidden) {
                 schemaHidden.push({ col: col, index: i });
+                return;
+            }
+            if (col && col.selection) {
+                pinned.push(col);
                 return;
             }
             if (col && col.name) {
@@ -524,7 +529,7 @@
         byName.forEach(function (col) {
             visible.push(col);
         });
-        const result = visible.slice();
+        const result = pinned.concat(visible);
         schemaHidden.forEach(function (entry) {
             result.splice(Math.min(entry.index, result.length), 0, entry.col);
         });

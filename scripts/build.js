@@ -29,6 +29,7 @@ const order = [
     "events.js",
     "preferences.js",
     "column-chooser.js",
+    "selection.js",
     "init.js",
 ];
 

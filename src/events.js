@@ -7,6 +7,9 @@
         if (view && view.el && typeof CT.applyLayoutToRow === "function") {
             CT.applyLayoutToRow(view.el, options.columns);
         }
+        if (typeof CT.bindSelectionRow === "function") {
+            CT.bindSelectionRow(item, view, table, options);
+        }
 
         options.columns.forEach(col=>{
             col.display.events.forEach(event=>{

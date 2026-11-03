@@ -663,3 +663,15 @@ th.kgrid-row-actions {
     background-color: transparent;
   }
 }
+
+.custom-table-shell th.kgrid-select,
+.custom-table-shell td.kgrid-select {
+  width: 2.25rem;
+  text-align: center;
+  vertical-align: middle;
+}
+.custom-table-shell .kgrid-select-all,
+.custom-table-shell .kgrid-select-row {
+  margin: 0;
+  vertical-align: middle;
+}

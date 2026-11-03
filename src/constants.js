@@ -16,8 +16,14 @@
             "delete": false,
             /** @deprecated use rowActions items [{ action: "clone" }] */
             "clone": false,
-            "columnChooser": false
+            "columnChooser": false,
+            /** Leading checkbox column. Header checkbox toggles the current page. */
+            "selection": false
         },
+        /** Optional { meta(item, $row) } copied onto each selected record (id is always set). */
+        selection: null,
+        selectionAllLabel: "Toggle all",
+        selectionRowLabel: "Select row",
         /**
          * Row action chrome: { display: "buttons"|"dropdown", items: [...] }.
          * Built-ins: delete, clone. Save/cancel come from features.update.
