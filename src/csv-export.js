@@ -77,8 +77,10 @@
     };
 
     function csvErrorMessage(response, data) {
-        if (data && data.errors && data.errors[0]) {
-            return data.errors[0].detail || data.errors[0].title || "";
+        const err = data && data.errors && data.errors[0];
+        const text = err && (err.detail || err.title || err.message);
+        if (text) {
+            return String(text);
         }
         if (data && data.error) {
             return String(data.error);

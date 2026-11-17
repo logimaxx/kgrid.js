@@ -1,4 +1,4 @@
-/*! @logimaxx/kgrid | (c) Logimaxx System SRL — proprietary | https://logimaxx.ro | built 2026-11-17T14:32:28.471Z */
+/*! @logimaxx/kgrid | (c) Logimaxx System SRL — proprietary | https://logimaxx.ro | built 2026-11-17T14:55:40.243Z */
 
 /* --- configure.js --- */
 /**
@@ -4224,8 +4224,10 @@
     };
 
     function csvErrorMessage(response, data) {
-        if (data && data.errors && data.errors[0]) {
-            return data.errors[0].detail || data.errors[0].title || "";
+        const err = data && data.errors && data.errors[0];
+        const text = err && (err.detail || err.title || err.message);
+        if (text) {
+            return String(text);
         }
         if (data && data.error) {
             return String(data.error);

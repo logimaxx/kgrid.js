@@ -50,6 +50,32 @@ describe("csv export url", () => {
     });
 });
 
+describe("csv export errors", () => {
+    it("shows the dbAPI message field", async () => {
+        const fetchMock = vi.fn().mockResolvedValue({
+            ok: false,
+            status: 404,
+            json: () =>
+                Promise.resolve({
+                    errors: [{ message: "Resource ID 1 of type companies not found" }],
+                }),
+        });
+        const realFetch = window.fetch;
+        window.fetch = fetchMock;
+        try {
+            await expect(
+                KGrid.downloadCsv(
+                    { type: "inventory_moves_expanded", columns: [] },
+                    { instance: { url: { toString: () => "/companies/1/inventory_moves_expanded" } } },
+                    "all"
+                )
+            ).rejects.toThrow("Resource ID 1 of type companies not found");
+        } finally {
+            window.fetch = realFetch;
+        }
+    });
+});
+
 describe("csv export fields", () => {
     it("skips hidden, selection, and export:false columns", () => {
         const columns = [
