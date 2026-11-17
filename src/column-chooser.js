@@ -18,8 +18,44 @@
         }).length;
     }
 
+    function bindCsvExport($panel, options, api) {
+        $panel
+            .off("click.kgridCsv")
+            .on("click.kgridCsv", ".kgrid-csv-export-visible, .kgrid-csv-export-all", function () {
+                const button = this;
+                const mode = button.classList.contains("kgrid-csv-export-visible") ? "visible" : "all";
+                button.disabled = true;
+                Promise.resolve(CT.downloadCsv(options, api, mode))
+                    .catch(function (err) {
+                        CT.onError(err);
+                    })
+                    .finally(function () {
+                        button.disabled = false;
+                    });
+            });
+    }
+
     CT.renderColumnChooserPanel = function ($panel, options, api) {
         $panel.empty();
+        const chooser = !!(options.features && options.features.columnChooser);
+        const csv = !!(options.features && options.features.csvExport);
+        if (csv) {
+            const $export = $("<div>").addClass("kgrid-column-chooser-export").appendTo($panel);
+            $("<button>")
+                .attr("type", "button")
+                .addClass("btn btn-sm btn-outline-secondary kgrid-csv-export-visible")
+                .text(options.csvExportVisibleLabel || "Export CSV — visible fields")
+                .appendTo($export);
+            $("<button>")
+                .attr("type", "button")
+                .addClass("btn btn-sm btn-outline-secondary kgrid-csv-export-all")
+                .text(options.csvExportAllLabel || "Export CSV — all fields")
+                .appendTo($export);
+            bindCsvExport($panel, options, api);
+        }
+        if (!chooser) {
+            return;
+        }
         const $list = $("<ul>").addClass("kgrid-column-chooser-list").appendTo($panel);
         CT.chooserColumns(options.columns).forEach(function (col) {
             const $li = $("<li>")
@@ -99,7 +135,9 @@
     };
 
     CT.setupColumnChooser = function ($host, options, api) {
-        if (!options.features || !options.features.columnChooser) {
+        const chooser = !!(options.features && options.features.columnChooser);
+        const csv = !!(options.features && options.features.csvExport);
+        if (!chooser && !csv) {
             return;
         }
         const $shell = CT.getTableInteractionHost($host);

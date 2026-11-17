@@ -157,6 +157,7 @@ features: {
   delete: false,
   clone: false,
   columnChooser: false,
+  csvExport: false,
   selection: false,
 }
 ```
@@ -168,6 +169,10 @@ features: {
 | `storageKey` | `string` | Persist layout (order + user-hidden), filter values, sort, and paging. Layout key: `kgrid:{storageKey}:layout`. Filters: `kgrid:{storageKey}:filters`. Sort and page size / offset: `kgrid:{storageKey}:view`. Scope suffix applies to filters and view, not layout. |
 | `filterStorageScope` | `string` | Suffix for saved filters, sort, and paging (e.g. company id). Column layout is shared across scopes. |
 | `features.columnChooser` | `boolean` | Columns panel (checkbox + drag) opened from a gear icon in the trailing `th.kgrid-row-actions`. Ensures the actions column exists. Works without `storageKey` (session only). |
+| `features.csvExport` | `boolean` | Two actions in that panel. Both download dbAPI `format=csv` for the current filter and sort, with `page[type][limit]` raised to `csvExportLimit` (default 10000) and offset 0. **All fields** leaves `include` in place and sends no `fields[...]`. **Visible fields** sends `fields[type]` for the columns on screen, in that order, and drops `include`. |
+| `csvExportVisibleLabel` / `csvExportAllLabel` | `string` | Button labels. |
+| `csvExportLimit` | `number` | Page limit on the CSV request (default `10000`). |
+| `csvFileName` | `string` | Download name (default `{type}.csv`). |
 | `features.selection` | `boolean` | Leading checkbox column. The header checkbox toggles every row on the current page. Selected ids survive filter, sort, and paging. The column stays first and out of the column chooser. |
 | `selection` | `{ meta(item, $row) }` | Extra fields stored with each selected id. `id` is always the record id. |
 | `selectionAllLabel` | `string` | Header checkbox `aria-label` (default `"Toggle all"`). |
@@ -184,6 +189,8 @@ Column flags:
 | `defaultHidden: true` | Start collapsed (`userHidden`); still in the chooser so users can show it. Ignored when `locked`. Reset columns restores this default. |
 | `locked: true` | Visible; chooser cannot hide it (still reorderable). Use on required list fields such as name. |
 | `userHidden` | Runtime only — set via chooser / `setLayout` |
+| `export: false` | Omit this column from the visible-fields CSV. The name is not a selectable field. |
+| `exportField` | Field name sent in `fields[type]` instead of `name` |
 
 User-hidden columns use **`display: none`** on cells and are **omitted from `<colgroup>`**. `table-layout: fixed` maps each participating cell to the next `<col>`; a leftover zero-width col remaps every following column (letter-stacked headers, blank gaps). Chrome also treats `visibility: collapse` as `hidden`, so that is not a substitute. Filter/insert/update controls stay in the DOM. Filter values on hidden columns remain until Reset.
 

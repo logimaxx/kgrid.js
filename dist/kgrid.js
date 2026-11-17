@@ -1,4 +1,4 @@
-/*! @logimaxx/kgrid | (c) Logimaxx System SRL — proprietary | https://logimaxx.ro | built 2026-11-03T11:43:16.250Z */
+/*! @logimaxx/kgrid | (c) Logimaxx System SRL — proprietary | https://logimaxx.ro | built 2026-11-17T14:32:28.471Z */
 
 /* --- configure.js --- */
 /**
@@ -210,6 +210,8 @@
             /** @deprecated use rowActions items [{ action: "clone" }] */
             "clone": false,
             "columnChooser": false,
+            /** dbAPI CSV from the column panel: all fields, or the visible columns. */
+            "csvExport": false,
             /** Leading checkbox column. Header checkbox toggles the current page. */
             "selection": false
         },
@@ -231,6 +233,10 @@
         filterStorageScope: null,
         columnChooserLabel: "Columns",
         columnChooserResetLabel: "Reset columns",
+        csvExportVisibleLabel: "Export CSV — visible fields",
+        csvExportAllLabel: "Export CSV — all fields",
+        /** Row cap sent as page[type][limit] on the CSV request. */
+        csvExportLimit: 10000,
         "defaultInteraction": "view",
         "insertFormRow": {
             "position": "top"
@@ -273,6 +279,11 @@
         defaultHidden: false,
         /** Runtime: user hid this column via chooser. Not a schema flag. */
         userHidden: false,
+        /**
+         * Sparse CSV: false omits the column. A string exports that field name
+         * instead of `name` (the column name is still the chooser key).
+         */
+        export: true,
         /** CSS class(es) on header/filter/data/insert cells (alias: columnClass) */
         class: null,
         columnClass: null,
@@ -951,7 +962,7 @@
      */
     CT.hasActionColumn = function (options) {
         const f = options && options.features;
-        if (f && (f.create || f.columnChooser)) {
+        if (f && (f.create || f.columnChooser || f.csvExport)) {
             return true;
         }
         const ra = CT.resolveRowActions(options);
@@ -4133,6 +4144,143 @@
 })(window.KGrid);
 
 
+/* --- csv-export.js --- */
+/**
+ * dbAPI CSV export from the column chooser.
+ * Full export keeps the collection query (filters, sort, include).
+ * Visible export sends fields[type] for the columns on screen and drops include,
+ * so related resources are not appended in full.
+ */
+(function (CT) {
+    CT.csvExportFields = function (columns) {
+        return CT.layoutVisibleColumns(columns)
+            .filter(function (col) {
+                return (
+                    col &&
+                    col.name &&
+                    !col.selection &&
+                    col.name !== CT.SELECTION_COLUMN_NAME &&
+                    col.export !== false
+                );
+            })
+            .map(function (col) {
+                return typeof col.exportField === "string" && col.exportField
+                    ? col.exportField
+                    : col.name;
+            });
+    };
+
+    /**
+     * @param {string} href collection URL (relative or absolute)
+     * @param {{ type: string, mode: "all"|"visible", fields?: string[], limit?: number }} spec
+     * @returns {string} same shape as href (path+query, or absolute)
+     */
+    CT.buildCsvExportUrl = function (href, spec) {
+        const parsed = new window.URL(href, "http://kgrid.local");
+        const type = spec && spec.type;
+        const limit = spec && spec.limit != null ? spec.limit : 10000;
+        parsed.searchParams.set("format", "csv");
+        parsed.searchParams.set("includetablehead", "true");
+        if (type) {
+            parsed.searchParams.set("page[" + type + "][limit]", String(limit));
+            parsed.searchParams.set("page[" + type + "][offset]", "0");
+        }
+        const dropFields = [];
+        parsed.searchParams.forEach(function (_value, key) {
+            if (key.indexOf("fields[") === 0) {
+                dropFields.push(key);
+            }
+        });
+        dropFields.forEach(function (key) {
+            parsed.searchParams.delete(key);
+        });
+        if (spec && spec.mode === "visible") {
+            parsed.searchParams.delete("include");
+            if (type && spec.fields && spec.fields.length) {
+                parsed.searchParams.set("fields[" + type + "]", spec.fields.join(","));
+            }
+        }
+        if (/^https?:\/\//i.test(href)) {
+            return parsed.toString();
+        }
+        return parsed.pathname + parsed.search;
+    };
+
+    CT.resolveApiUrl = function (href, kviews) {
+        if (href == null || href === "") {
+            return href;
+        }
+        const s = String(href);
+        if (/^https?:\/\//i.test(s) || s.startsWith("//")) {
+            return s;
+        }
+        const base = (kviews && (kviews.baseUrl || kviews.basePath)) || "";
+        if (!base) {
+            return s;
+        }
+        const baseNorm = String(base).replace(/\/+$/, "");
+        const pathNorm = s.replace(/^\/+/, "");
+        return pathNorm ? baseNorm + "/" + pathNorm : baseNorm + "/";
+    };
+
+    function csvErrorMessage(response, data) {
+        if (data && data.errors && data.errors[0]) {
+            return data.errors[0].detail || data.errors[0].title || "";
+        }
+        if (data && data.error) {
+            return String(data.error);
+        }
+        return "CSV export failed (" + response.status + ")";
+    }
+
+    CT.downloadCsv = function (options, api, mode) {
+        const instance = api && api.instance;
+        const href =
+            instance && instance.url && instance.url.toString ? instance.url.toString() : "";
+        if (!href) {
+            return Promise.reject(new Error("CSV export requires a collection URL"));
+        }
+        const type = options && options.type;
+        if (!type) {
+            return Promise.reject(new Error("CSV export requires a resource type"));
+        }
+        const fields = mode === "visible" ? CT.csvExportFields(options.columns) : null;
+        if (mode === "visible" && (!fields || !fields.length)) {
+            return Promise.reject(new Error("No visible columns to export"));
+        }
+        const built = CT.buildCsvExportUrl(href, {
+            type: type,
+            mode: mode === "visible" ? "visible" : "all",
+            fields: fields,
+            limit: options.csvExportLimit,
+        });
+        const requestUrl = CT.resolveApiUrl(built, CT.getKViews(options.kviews));
+        return window.fetch(requestUrl).then(function (response) {
+            if (!response.ok) {
+                return response
+                    .json()
+                    .catch(function () {
+                        return null;
+                    })
+                    .then(function (data) {
+                        throw new Error(csvErrorMessage(response, data));
+                    });
+            }
+            return response.blob().then(function (blob) {
+                const link = document.createElement("a");
+                const objectUrl = window.URL.createObjectURL(blob);
+                link.href = objectUrl;
+                link.download = options.csvFileName || type + ".csv";
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                window.URL.revokeObjectURL(objectUrl);
+            });
+        });
+    };
+})(window.KGrid);
+
+
 /* --- column-chooser.js --- */
 /**
  * Column chooser: checkbox visibility + HTML5 drag reorder.
@@ -4154,8 +4302,44 @@
         }).length;
     }
 
+    function bindCsvExport($panel, options, api) {
+        $panel
+            .off("click.kgridCsv")
+            .on("click.kgridCsv", ".kgrid-csv-export-visible, .kgrid-csv-export-all", function () {
+                const button = this;
+                const mode = button.classList.contains("kgrid-csv-export-visible") ? "visible" : "all";
+                button.disabled = true;
+                Promise.resolve(CT.downloadCsv(options, api, mode))
+                    .catch(function (err) {
+                        CT.onError(err);
+                    })
+                    .finally(function () {
+                        button.disabled = false;
+                    });
+            });
+    }
+
     CT.renderColumnChooserPanel = function ($panel, options, api) {
         $panel.empty();
+        const chooser = !!(options.features && options.features.columnChooser);
+        const csv = !!(options.features && options.features.csvExport);
+        if (csv) {
+            const $export = $("<div>").addClass("kgrid-column-chooser-export").appendTo($panel);
+            $("<button>")
+                .attr("type", "button")
+                .addClass("btn btn-sm btn-outline-secondary kgrid-csv-export-visible")
+                .text(options.csvExportVisibleLabel || "Export CSV — visible fields")
+                .appendTo($export);
+            $("<button>")
+                .attr("type", "button")
+                .addClass("btn btn-sm btn-outline-secondary kgrid-csv-export-all")
+                .text(options.csvExportAllLabel || "Export CSV — all fields")
+                .appendTo($export);
+            bindCsvExport($panel, options, api);
+        }
+        if (!chooser) {
+            return;
+        }
         const $list = $("<ul>").addClass("kgrid-column-chooser-list").appendTo($panel);
         CT.chooserColumns(options.columns).forEach(function (col) {
             const $li = $("<li>")
@@ -4235,7 +4419,9 @@
     };
 
     CT.setupColumnChooser = function ($host, options, api) {
-        if (!options.features || !options.features.columnChooser) {
+        const chooser = !!(options.features && options.features.columnChooser);
+        const csv = !!(options.features && options.features.csvExport);
+        if (!chooser && !csv) {
             return;
         }
         const $shell = CT.getTableInteractionHost($host);

@@ -26,6 +26,7 @@ const SRC_ORDER = [
     "insert-row.js",
     "events.js",
     "preferences.js",
+    "csv-export.js",
     "column-chooser.js",
     "selection.js",
     "init.js",

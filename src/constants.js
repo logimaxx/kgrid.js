@@ -17,6 +17,8 @@
             /** @deprecated use rowActions items [{ action: "clone" }] */
             "clone": false,
             "columnChooser": false,
+            /** dbAPI CSV from the column panel: all fields, or the visible columns. */
+            "csvExport": false,
             /** Leading checkbox column. Header checkbox toggles the current page. */
             "selection": false
         },
@@ -38,6 +40,10 @@
         filterStorageScope: null,
         columnChooserLabel: "Columns",
         columnChooserResetLabel: "Reset columns",
+        csvExportVisibleLabel: "Export CSV — visible fields",
+        csvExportAllLabel: "Export CSV — all fields",
+        /** Row cap sent as page[type][limit] on the CSV request. */
+        csvExportLimit: 10000,
         "defaultInteraction": "view",
         "insertFormRow": {
             "position": "top"
@@ -80,6 +86,11 @@
         defaultHidden: false,
         /** Runtime: user hid this column via chooser. Not a schema flag. */
         userHidden: false,
+        /**
+         * Sparse CSV: false omits the column. A string exports that field name
+         * instead of `name` (the column name is still the chooser key).
+         */
+        export: true,
         /** CSS class(es) on header/filter/data/insert cells (alias: columnClass) */
         class: null,
         columnClass: null,

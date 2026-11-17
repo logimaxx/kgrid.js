@@ -438,6 +438,15 @@ th.kgrid-row-actions {
 .kgrid-column-chooser-reset {
   width: 100%;
 }
+.kgrid-column-chooser-export {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+.kgrid-column-chooser-export .btn {
+  width: 100%;
+}
 
 /* multi_select: checkbox list (dropdown in filter row) */
 .kgrid-multi-select {

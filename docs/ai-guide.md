@@ -109,7 +109,7 @@ Per-table override: pass `deleteConfirm` in `init(host, { deleteConfirm, ... })`
 **Features** (all default `false`):
 
 ```javascript
-features: { filtering, sorting, paging, create, update, delete, columnChooser, selection }
+features: { filtering, sorting, paging, create, update, delete, columnChooser, csvExport, selection }
 ```
 
 **Interaction:**
@@ -164,7 +164,7 @@ Each column in `columns: []` is normalized via `KGrid.normalizeColumnConfig` (pr
 
 **Hidden / persist filters:** columns with `hidden: true` or `filter.type: "hidden"` get a hidden form field (no filter-row cell). `filter.persist` (or hidden) re-applies `filter.default` on form reset.
 
-**User column layout + filter reload:** `storageKey` persists layout (all companies), filter values, sort, and paging (`filterStorageScope` suffixes filters and the view key, e.g. company id) to `localStorage`. Sort icons follow `url.parameters.sort`. Page size is applied to `.pagesize` before the collection is created; offset is applied before the first `loadFromRemote`. `features.columnChooser` adds a gear in the trailing `th.kgrid-row-actions` that opens a Columns panel (reorder + hide) and keeps that column visible. The open panel uses `position:fixed` (like kebab menus) so card/`overflow` hosts do not clip it. Schema `hidden` columns stay out of the chooser. `defaultHidden: true` starts the column hidden (`display:none`, omitted from `<colgroup>`) but still listed in the chooser. `locked: true` columns cannot be hidden. Hidden columns keep filter/insert/update inputs in the DOM. `grid.getLayout()` / `setLayout()` / `resetLayout()` (reset restores `defaultHidden`, not “all visible”).
+**User column layout + filter reload:** `storageKey` persists layout (all companies), filter values, sort, and paging (`filterStorageScope` suffixes filters and the view key, e.g. company id) to `localStorage`. Sort icons follow `url.parameters.sort`. Page size is applied to `.pagesize` before the collection is created; offset is applied before the first `loadFromRemote`. `features.columnChooser` adds a gear in the trailing `th.kgrid-row-actions` that opens a Columns panel (reorder + hide) and keeps that column visible. `features.csvExport` adds two buttons to that panel: dbAPI `format=csv` for every field (include kept, no `fields[]`) or for the visible columns only (`fields[type]`, `include` removed). A column with `export: false` is left out of the visible set; `exportField` renames it. The request copies the collection URL, sets `page[type][limit]` to `csvExportLimit` (10000) and offset 0. The open panel uses `position:fixed` (like kebab menus) so card/`overflow` hosts do not clip it. Schema `hidden` columns stay out of the chooser. `defaultHidden: true` starts the column hidden (`display:none`, omitted from `<colgroup>`) but still listed in the chooser. `locked: true` columns cannot be hidden. Hidden columns keep filter/insert/update inputs in the DOM. `grid.getLayout()` / `setLayout()` / `resetLayout()` (reset restores `defaultHidden`, not “all visible”).
 
 ---
 

@@ -216,7 +216,7 @@
      */
     CT.hasActionColumn = function (options) {
         const f = options && options.features;
-        if (f && (f.create || f.columnChooser)) {
+        if (f && (f.create || f.columnChooser || f.csvExport)) {
             return true;
         }
         const ra = CT.resolveRowActions(options);
